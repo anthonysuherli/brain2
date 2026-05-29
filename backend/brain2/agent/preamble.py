@@ -15,7 +15,6 @@ from __future__ import annotations
 from typing import Literal
 from xml.sax.saxutils import escape
 
-from brain2.agent.synopsis import load_synopsis
 from brain2.clients.embeddings import embed_text
 from brain2.config import TiersConfig, get_config
 
@@ -129,30 +128,31 @@ def render_preamble(
 async def select_preamble(
     query: str | None,
     *,
-    client,
+    store,
     kb_id: str,
     depth: Depth = "normal",
 ) -> tuple[str, Coverage]:
-    """IO entry: load synopsis + (optional) band query matches → (xml, coverage)."""
+    """IO entry: load synopsis + (optional) band query matches → (xml, coverage).
+
+    Takes a `Store` (the persistence seam) rather than a raw Supabase client, so
+    the local SQLite and cloud Supabase tiers share this one code path. The pure
+    core (band_findings / assess_coverage / render_preamble) is unchanged."""
     cfg = get_config().tiers
-    syn_row = load_synopsis(client, kb_id)
+    syn_row = store.load_synopsis(kb_id)
     synopsis = (syn_row or {}).get("content") or []
 
     bands: dict[int, list[dict]] = {1: [], 2: [], 3: []}
     coverage: Coverage = "gap"
     if query:
         qvec = await embed_text(query)
-        res = client.rpc(
-            "match_findings",
-            {
-                "query_embedding": qvec,
-                "match_kb_id": kb_id,
-                "match_count": get_config().search.max_limit,
-                # floor at the weakest band; band_findings drops anything below it
-                "min_similarity": cfg.band3_min,
-            },
-        ).execute()
-        bands = band_findings(res.data or [], cfg)
+        rows = await store.match_findings(
+            kb_id,
+            qvec,
+            match_count=get_config().search.max_limit,
+            # floor at the weakest band; band_findings drops anything below it
+            min_similarity=cfg.band3_min,
+        )
+        bands = band_findings(rows, cfg)
         coverage = assess_coverage(bands, cfg)
 
     return render_preamble(synopsis, bands, depth=depth, cfg=cfg), coverage

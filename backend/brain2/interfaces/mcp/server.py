@@ -22,12 +22,12 @@ from mcp.server.fastmcp import FastMCP
 from brain2.agent.preamble import select_preamble
 from brain2.capture.models import WorkspaceSnapshot
 from brain2.capture.service import persist_snapshot
-from brain2.clients.supabase import service_client
 from brain2.config import get_config, get_settings
 from brain2.exploration import run_exploration
 from brain2.interfaces.mcp.banner import BRAIN2_BANNER
 from brain2.interfaces.mcp.tenancy import resolve_tenant
-from brain2.monitoring.recorder import PREAMBLE_TARGETS, record_access
+from brain2.monitoring.recorder import PREAMBLE_TARGETS
+from brain2.store import get_store
 
 mcp = FastMCP("brain2")
 
@@ -80,15 +80,14 @@ async def brain2_resume(
     coverage routes behavior: rich → instant recall, gap → offer explore.
     """
     ctx = resolve_tenant(project, kb, create=False)
-    sb = service_client()
-    preamble, coverage = await select_preamble(query, client=sb, kb_id=ctx.kb_id, depth=depth)
-    await record_access(
+    store = get_store(ctx.access_token)
+    preamble, coverage = await select_preamble(query, store=store, kb_id=ctx.kb_id, depth=depth)
+    await store.record_access(
         org_id=ctx.org_id,
         kb_id=ctx.kb_id,
         surface="mcp",
         targets=PREAMBLE_TARGETS,
         query_text=query,
-        sb=sb,
     )
     return {
         "banner": BRAIN2_BANNER,

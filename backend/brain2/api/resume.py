@@ -11,8 +11,8 @@ from pydantic import BaseModel
 
 from brain2.agent.preamble import select_preamble
 from brain2.api.auth import require_api_key
-from brain2.clients.supabase import service_client
 from brain2.interfaces.mcp.tenancy import resolve_tenant
+from brain2.store import get_store
 
 router = APIRouter(prefix="/v1", dependencies=[Depends(require_api_key)])
 
@@ -38,19 +38,15 @@ async def resume(
     into the webview panel; `preamble` is the raw XML for Claude Code MCP use.
     """
     ctx = resolve_tenant(project, kb, create=False)
-    sb = service_client()
+    store = get_store(ctx.access_token)
 
-    preamble_xml, coverage = await select_preamble(query, client=sb, kb_id=ctx.kb_id)
+    preamble_xml, coverage = await select_preamble(query, store=store, kb_id=ctx.kb_id)
 
-    # Snapshot count for the card header
-    snapshot_count = (
-        sb.table("findings")
-        .select("id", count="exact")
-        .eq("kb_id", ctx.kb_id)
-        .eq("category", "snapshot")
-        .limit(1)
-        .execute()
-    ).count or 0
+    # Snapshot count for the card header. list_findings caps at its max limit
+    # (100), so this is "snapshots, up to that cap" — fine for a header chip.
+    snapshot_count = store.list_findings(
+        ctx.kb_id, category="snapshot", limit=100
+    )["count"]
 
     card_html = _render_card(
         preamble_xml,

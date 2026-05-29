@@ -24,19 +24,24 @@ class Settings(BaseSettings):
         env_file=Path(__file__).resolve().parents[1] / ".env", extra="ignore"
     )
 
-    # Supabase (shared with Divergence)
-    supabase_url: str = Field(..., alias="SUPABASE_URL")
-    supabase_anon_key: str = Field(..., alias="SUPABASE_ANON_KEY")
-    supabase_service_role_key: str = Field(..., alias="SUPABASE_SERVICE_ROLE_KEY")
-    supabase_jwt_secret: str = Field(..., alias="SUPABASE_JWT_SECRET")
-    database_url: str = Field(..., alias="DATABASE_URL")
+    # Supabase (shared with Divergence). Optional: the free/local tier
+    # (BRAIN2_BACKEND=local, SQLite) boots with NONE of these set. The cloud
+    # tier requires them — clients.supabase.service_client() raises a clear
+    # error only when actually called without creds (not at import/Settings time).
+    supabase_url: str | None = Field(default=None, alias="SUPABASE_URL")
+    supabase_anon_key: str | None = Field(default=None, alias="SUPABASE_ANON_KEY")
+    supabase_service_role_key: str | None = Field(default=None, alias="SUPABASE_SERVICE_ROLE_KEY")
+    supabase_jwt_secret: str | None = Field(default=None, alias="SUPABASE_JWT_SECRET")
+    database_url: str | None = Field(default=None, alias="DATABASE_URL")
 
-    # LLM provider keys
-    anthropic_api_key: str = Field(..., alias="ANTHROPIC_API_KEY")
-    openai_api_key: str = Field(..., alias="OPENAI_API_KEY")
+    # LLM provider keys. `openai_api_key` powers embeddings (needed in BOTH
+    # tiers) but stays optional here so Settings construction never explodes;
+    # the embedding client surfaces a clear error if it is actually missing.
+    anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
+    openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
 
-    # Vercel AI Gateway (Phase 3 explore)
-    ai_gateway_api_key: str = Field(..., alias="AI_GATEWAY_API_KEY")
+    # Vercel AI Gateway (Phase 3 explore) — cloud-only, optional.
+    ai_gateway_api_key: str | None = Field(default=None, alias="AI_GATEWAY_API_KEY")
     ai_gateway_base_url: str = Field(
         default="https://ai-gateway.vercel.sh/v1", alias="AI_GATEWAY_BASE_URL"
     )

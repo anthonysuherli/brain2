@@ -136,7 +136,9 @@ def patch_clients(monkeypatch):
 # --- import smoke -----------------------------------------------------------
 
 
-def test_import_smoke():
+def test_import_smoke(monkeypatch):
+    # get_store now selects by backend; force cloud to exercise the Supabase path.
+    monkeypatch.setenv("BRAIN2_BACKEND", "cloud")
     assert isinstance(get_store(None), SupabaseStore)
     assert isinstance(get_store("tok"), SupabaseStore)
     # Store is a (non-runtime-checkable) Protocol; assert the surface is present.

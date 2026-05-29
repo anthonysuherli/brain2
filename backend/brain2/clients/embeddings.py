@@ -16,6 +16,11 @@ def _get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
         settings = get_settings()
+        if not settings.openai_api_key:
+            raise RuntimeError(
+                "embeddings require OPENAI_API_KEY (needed in both the local and "
+                "cloud tiers); set it in the environment or .env"
+            )
         _client = AsyncOpenAI(api_key=settings.openai_api_key)
     return _client
 
