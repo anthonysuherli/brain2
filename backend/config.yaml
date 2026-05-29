@@ -1,5 +1,10 @@
 # brain2 engine config — layered on top of Divergence defaults.
-# Override any section: env var B2_<SECTION>__<FIELD> takes highest precedence.
+# Override any section/field with env var B2_<SECTION>__<FIELD> (highest
+# precedence), e.g. B2_SEARCH__DEFAULT_LIMIT=20.
+#
+# NOTE: storage-backend selection is NOT configured here. It is driven by the
+# BRAIN2_BACKEND env var ("local" | "cloud"); if unset, brain2 uses cloud iff
+# Supabase creds are present, else local. See .env.example.
 
 agent:
   model: "claude-sonnet-4-6"

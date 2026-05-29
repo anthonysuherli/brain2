@@ -36,21 +36,62 @@ brain2 fully standalone.
 - `knowledge_graph/` — KG builder (not used by the capture/resume loop)
 - `monitoring/service.py`, `monitoring/report.py` — only `recorder.py` is copied
 
+## Storage tiers
+
+brain2 ships in two tiers from one engine. The split is **storage + identity**;
+all engine logic (capture, preamble/coverage, synopsis, exploration) is shared and
+never touches a storage client directly — it calls `store = get_store()`.
+
+- **`brain2/store/`** — `Store` protocol (`base.py`) with two implementations:
+  - `SQLiteStore` (free/local) — SQLite + `sqlite-vec`, single synthetic
+    `org_id="local"`, no auth/no Supabase/single device. DB at `~/.brain2/brain.db`
+    (override `BRAIN2_DB_PATH`); `_ensure_schema()` runs `CREATE TABLE IF NOT EXISTS`
+    on first open. Cached as a per-`db_path` singleton (one reused connection).
+  - `SupabaseStore` (paid/cloud) — wraps today's `service_client()` / `user_client()`
+    calls (GoTrue + pgvector + RLS). Built fresh per request (carries the per-request
+    `access_token` for RLS scope).
+- **Selection** — `active_backend()` / `get_store()` read `BRAIN2_BACKEND`
+  (`"local"` | `"cloud"`); if unset, cloud iff Supabase creds present, else local.
+  `active_backend()` is importable from `brain2.store`.
+- **Tenancy fork** — `resolve_tenant` (mcp/tenancy.py) forks on `active_backend()`:
+  local skips GoTrue (`user_id="local"`, `access_token=""`, `org_id="local"`); cloud
+  does the GoTrue login for a real JWT. `TenantContext` shape is identical on both.
+- **Auth fork** — `api/auth.py::require_api_key` is a no-op on the local tier
+  (loopback-only, single user — no `BRAIN2_API_KEY` needed) and validates the Bearer
+  key exactly as before on cloud. Safe only because the local server binds 127.0.0.1.
+- **Settings** — Supabase/server creds are **optional**, so the local tier boots with
+  none. `service_client()` raises clearly only if the cloud path is hit creds-less.
+
+**Cloud value props (FUTURE — not built).** Cloud MVP today = the Supabase backend
+behind `SupabaseStore` + the existing GoTrue login. The paid differentiators —
+(1) managed keys, (2) cross-machine sync, (3) cross-repo search, (4) team sharing —
+are designed (see `docs/plans/2026-05-29-brain2-tiers-design.md`) but not yet
+implemented. Do not document them as shipping.
+
 ## Setup
 
+`uv` is the intended toolchain, but it may not be installed — the venv reality is
+plain `python3.11 -m venv`. The local tier additionally needs `sqlite-vec`.
+
 ```bash
-# Install backend
 cd backend
-uv venv && uv sync
+python3.11 -m venv .venv          # or: uv venv
+.venv/bin/pip install -e ".[dev]" sqlite-vec   # or: uv sync && uv pip install sqlite-vec
+cp .env.example .env              # pick the FREE or PAID block (see file)
+```
 
-# Copy .env and fill in values (shared with divergence Supabase instance)
-cp .env.example .env
+**Free / local tier** (SQLite, no Supabase, no API key, loopback-only):
 
-# Run the API server
+```bash
+BRAIN2_BACKEND=local uvicorn brain2.api.main:app --host 127.0.0.1 --port 8002
+BRAIN2_BACKEND=local python -m brain2.interfaces.mcp.server
+```
+
+**Paid / cloud tier** (today's Supabase backend; needs the cloud .env block):
+
+```bash
 uvicorn brain2.api.main:app --reload --port 8002
-
-# Run the MCP server (add to .claude/settings.json)
-python -m brain2.interfaces.mcp.server
+python -m brain2.interfaces.mcp.server          # add to .claude/settings.json
 ```
 
 ```bash
@@ -66,8 +107,9 @@ npm run build
 - Imports: always `from brain2.*` — never `from divergence.*`
 - Engine updates: when syncing engine improvements from divergence, apply them manually
   (copy file, rename imports). Do NOT re-introduce a cross-repo dep.
-- Auth: pre-shared API key (`BRAIN2_API_KEY` in .env = `brain2.apiKey` in VS Code secrets)
-- Supabase: same instance and schema as divergence (no migration divergence)
+- Auth: cloud tier uses a pre-shared API key (`BRAIN2_API_KEY` in .env = `brain2.apiKey`
+  in VS Code secrets); local tier requires no key (loopback-only, see Storage tiers)
+- Supabase (cloud tier): same instance and schema as divergence (no migration divergence)
 - KB naming: project = workspace folder name, kb = git branch name
 
 ## Phase status
@@ -76,6 +118,9 @@ npm run build
 - [x] Phase 1 — VS Code extension scaffold (triggers, capture, resume card)
 - [x] Phase 2 — Resume card polish (hypothesis prominent, snapshot count, auto-resume on focus)
 - [x] Phase 3 — Always-open explore seam (gap-band → explore pipeline → auto-refresh card)
+- [x] Storage tiers — `Store` protocol + `SQLiteStore`/`SupabaseStore`, `get_store()`/
+  `active_backend()` selection, free-tier local entry points (no-auth loopback API +
+  local MCP). Paid value props (sync/cross-repo/managed-keys/teams) remain future.
 
 ## API surface
 

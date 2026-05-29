@@ -1,6 +1,15 @@
 """brain2 FastAPI application entry point.
 
+Cloud (paid) tier::
+
     uvicorn brain2.api.main:app --reload --port 8002
+
+Free (local) tier — bind to loopback; no API key required (see brain2.api.auth)::
+
+    BRAIN2_BACKEND=local uvicorn brain2.api.main:app --host 127.0.0.1 --port 8002
+
+The local-tier auth bypass is safe ONLY because the server stays on 127.0.0.1.
+Do not pass ``--host 0.0.0.0`` on the local tier.
 """
 
 from __future__ import annotations
