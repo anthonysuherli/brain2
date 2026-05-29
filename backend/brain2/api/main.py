@@ -30,9 +30,14 @@ logger = logging.getLogger(__name__)
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
+_warned_local = False
+
+
 def create_app() -> FastAPI:
+    global _warned_local
     settings = get_settings()
-    if active_backend() == "local":
+    if active_backend() == "local" and not _warned_local:
+        _warned_local = True
         logger.warning(
             "local tier: API auth is DISABLED; ensure loopback binding."
         )
