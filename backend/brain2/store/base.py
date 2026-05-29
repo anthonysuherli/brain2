@@ -56,7 +56,9 @@ class Store(Protocol):
         """Current synopsis row for `kb_id`, or None."""
         ...
 
-    def upsert_synopsis(self, kb_id: str, content: list[dict], finding_count: int) -> None:
+    def upsert_synopsis(
+        self, kb_id: str, content: list[dict], finding_count: int, model: str
+    ) -> None:
         """Write the KB's synopsis spine (one current row per KB)."""
         ...
 

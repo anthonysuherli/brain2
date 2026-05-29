@@ -281,7 +281,7 @@ def test_upsert_synopsis(patch_clients):
     fake = patch_clients(
         FakeClient(tables={"kbs": _Result(data=[{"org_id": "org1"}])})
     )
-    SupabaseStore().upsert_synopsis("kb1", [{"topic": "t", "gloss": "g"}], 5)
+    SupabaseStore().upsert_synopsis("kb1", [{"topic": "t", "gloss": "g"}], 5, "gpt-4o-mini")
 
     q = fake.queries[-1]
     assert q.table == "kb_synopsis" and q.op == "upsert"
@@ -289,7 +289,14 @@ def test_upsert_synopsis(patch_clients):
     assert q.payload["org_id"] == "org1"
     assert q.payload["content"] == [{"topic": "t", "gloss": "g"}]
     assert q.payload["finding_count_at_build"] == 5
+    assert q.payload["model"] == "gpt-4o-mini"
     assert q.upsert_kwargs == {"on_conflict": "kb_id"}
+
+
+def test_upsert_synopsis_missing_kb_raises(patch_clients):
+    patch_clients(FakeClient(tables={"kbs": _Result(data=[])}))
+    with pytest.raises(RuntimeError, match="cannot upsert synopsis"):
+        SupabaseStore().upsert_synopsis("kb1", [], 0, "gpt-4o-mini")
 
 
 # --- tenancy: find-or-create ------------------------------------------------

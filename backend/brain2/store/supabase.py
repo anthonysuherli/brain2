@@ -30,6 +30,7 @@ from brain2.interfaces.mcp.tenancy import (
     _login,
     _org_for,
 )
+from brain2.monitoring.recorder import record_access as _record_access
 
 # Column lists copied from findings/service.py — keep in lockstep.
 _FINDING_COLS = "id, title, content, category, confidence, tags, provenance, created_at"
@@ -133,20 +134,27 @@ class SupabaseStore:
         """Reuses agent/synopsis.py load_synopsis against the service client."""
         return _load_synopsis(service_client(), kb_id)
 
-    def upsert_synopsis(self, kb_id: str, content: list[dict], finding_count: int) -> None:
+    def upsert_synopsis(
+        self, kb_id: str, content: list[dict], finding_count: int, model: str
+    ) -> None:
         """Mirrors the kb_synopsis upsert in agent/synopsis.py maybe_rebuild_synopsis.
 
         `org_id` is resolved from the kb row to satisfy the table's not-null
-        column; the upsert conflicts on kb_id (one current row per KB)."""
+        column; the upsert conflicts on kb_id (one current row per KB). `model`
+        records the synopsis-builder model for provenance (a not-null-able
+        column the original write set)."""
         sb = service_client()
         kb = sb.table("kbs").select("org_id").eq("id", kb_id).limit(1).execute().data
-        org_id = kb[0]["org_id"] if kb else None
+        if not kb:
+            raise RuntimeError(f"kb {kb_id} not found — cannot upsert synopsis")
+        org_id = kb[0]["org_id"]
         sb.table("kb_synopsis").upsert(
             {
                 "org_id": org_id,
                 "kb_id": kb_id,
                 "content": content,
                 "finding_count_at_build": finding_count,
+                "model": model,
                 "built_at": _now_iso(),
             },
             on_conflict="kb_id",
@@ -228,24 +236,16 @@ class SupabaseStore:
         targets,
         query_text: str | None = None,
     ) -> None:
-        """Mirrors monitoring/recorder.py record_access — never raises.
+        """Delegates to monitoring/recorder.py record_access — never raises.
 
-        `targets` is a sequence of monitoring.recorder.Target."""
-        if not targets:
-            return
-        rows = [
-            {
-                "org_id": org_id,
-                "kb_id": kb_id,
-                "target_type": t.target_type,
-                "target_id": t.target_id,
-                "surface": surface,
-                "api_key_id": None,
-                "query_text": query_text,
-            }
-            for t in targets
-        ]
-        try:
-            service_client().table("access_events").insert(rows).execute()
-        except Exception:
-            pass  # monitoring must not break the request path
+        `targets` is a sequence of monitoring.recorder.Target. Delegating keeps
+        the access_events row shape in lockstep with the canonical writer and
+        preserves its best-effort (never-raises) contract."""
+        await _record_access(
+            org_id=org_id,
+            kb_id=kb_id,
+            surface=surface,
+            targets=targets,
+            query_text=query_text,
+            sb=service_client(),
+        )
