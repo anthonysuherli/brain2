@@ -70,47 +70,48 @@ def _find_or_create(
 
 
 def resolve_project_id(project: str, *, create: bool = False) -> tuple[str, str]:
-    """Return (org_id, project_id) for the named project."""
-    user_id, _ = _login()
-    org_id = _org_for(user_id)
-    sb = service_client()
-    pid = _find_or_create(
-        sb,
-        "projects",
-        {"org_id": org_id, "name": project},
-        {"org_id": org_id, "name": project},
-        create,
-    )
-    return org_id, pid
+    """Return (org_id, project_id) for the named project, via the active Store."""
+    from brain2.store import get_store
+
+    return get_store().resolve_project(project, create=create)
 
 
 def resolve_tenant(project: str, kb: str, *, create: bool = True) -> TenantContext:
     """Resolve a TenantContext by name, creating project/KB on demand.
 
-    Two v0 assumptions, documented as known gaps:
+    **Backend fork.** Tenancy resolution goes through the active `Store`
+    (`resolve_project` → (org_id, project_id), then `resolve_kb` → kb_id), so the
+    local SQLite and cloud Supabase tiers share one shape. The only tier-specific
+    step is *identity*: the cloud tier does a GoTrue login to obtain a real
+    user_id + JWT (RLS scope) before resolving; the local tier is single-user and
+    has no auth, so user_id="local", access_token="" (org_id="local" comes back
+    from the store). `TenantContext`'s shape is identical on both paths.
+
+    Two v0 assumptions on the cloud path, documented as known gaps:
       * name-resolution is single-flight — `projects`/`kbs` have no unique
         constraint on (org_id[, project_id], name), so concurrent first-touch
         of the same name can create duplicates; later resolves pick limit(1).
       * a fresh GoTrue login + org lookup runs on every call (no caching).
         Caching must add token expiry/refresh in the same change.
     """
-    user_id, token = _login()
-    org_id = _org_for(user_id)
-    sb = service_client()
-    project_id = _find_or_create(
-        sb,
-        "projects",
-        {"org_id": org_id, "name": project},
-        {"org_id": org_id, "name": project},
-        create,
-    )
-    kb_id = _find_or_create(
-        sb,
-        "kbs",
-        {"org_id": org_id, "project_id": project_id, "name": kb},
-        {"org_id": org_id, "project_id": project_id, "name": kb},
-        create,
-    )
+    from brain2.store import active_backend, get_store
+
+    store = get_store()
+    if active_backend() == "local":
+        # Single-user local tier: no GoTrue login. The store returns org_id="local".
+        user_id, token = "local", ""
+        org_id, project_id = store.resolve_project(project, create=create)
+        kb_id = store.resolve_kb(org_id, project_id, kb, create=create)
+    else:
+        # Cloud tier: real GoTrue identity feeds RLS-scoped finding ops.
+        # KNOWN FOLLOW-UP (cloud-only, non-blocking): this logs into GoTrue once
+        # here for the token, and SupabaseStore.resolve_project logs in AGAIN
+        # internally (+ a second org lookup). Same user/org, so it's a latency
+        # regression, not a correctness bug. Fix alongside the login-caching work
+        # noted above by threading the resolved (user_id, org_id) into the store.
+        user_id, token = _login()
+        org_id, project_id = store.resolve_project(project, create=create)
+        kb_id = store.resolve_kb(org_id, project_id, kb, create=create)
     # thread_id is unused on this path (only POST /agent writes chat_messages).
     return TenantContext(
         user_id=user_id,

@@ -48,23 +48,59 @@ Slash commands call the same engine from inside a Claude Code session:
 | `/brain2:search <q>` | Ask a question grounded in your captured session history |
 | `/brain2:explore <p>` | Force the gap-fill web-research pipeline |
 
-> The Claude Code plugin skills are planned; the MCP tools they call (`brain2_capture`,
-> `brain2_resume`, `brain2_explore`) are built and usable today.
+> The Claude Code plugin skills are built and available (`skills/`: capture, resume,
+> search, explore); the MCP tools they call (`brain2_capture`, `brain2_resume`,
+> `brain2_explore`) are built and usable today.
+
+## Free vs Paid
+
+brain2 runs in two tiers from one engine — the difference is **where your data
+lives and how you sign in**, not what the engine does.
+
+| | Free / local | Paid / cloud |
+|---|---|---|
+| Storage | On-device SQLite (`~/.brain2/brain.db`) | Hosted Supabase (pgvector + RLS) |
+| Account | None — single device, no login | GoTrue sign-in |
+| API keys | Bring your own (`OPENAI_API_KEY`, optional `TAVILY_API_KEY`) | Managed (future) |
+| API server | Loopback (`127.0.0.1`), no API key | Pre-shared `BRAIN2_API_KEY` |
+| Select via | `BRAIN2_BACKEND=local` | `BRAIN2_BACKEND=cloud` + Supabase creds |
+
+The paid differentiators — cross-machine **sync**, **cross-repo search**, **managed
+keys**, and **team sharing** — are designed but **not yet shipped**. The cloud tier
+today is the Supabase backend with GoTrue login.
 
 ## Quick start
 
 ### 1. Backend
 
+`uv` is optional — plain `venv` works. The local tier needs `sqlite-vec`.
+
 ```bash
 cd backend
-cp .env.example .env          # fill in Supabase + OpenAI + Anthropic keys
-                              # set BRAIN2_API_KEY=brain2_live_<anything>
-uv venv && uv sync
+python3.11 -m venv .venv          # or: uv venv
+.venv/bin/pip install -e ".[dev]" sqlite-vec
+cp .env.example .env              # pick the FREE or PAID block (see the file)
+```
+
+**Free / local** (SQLite, no account, no API key) — use the blessed launcher; it
+enforces loopback binding because the local tier disables API auth:
+
+```bash
+BRAIN2_BACKEND=local python -m brain2.api.main   # binds 127.0.0.1:8002
+```
+
+Set `OPENAI_API_KEY` (embeddings) and, optionally, `TAVILY_API_KEY` (explore) in
+`.env`. Data lives in `~/.brain2/brain.db` (override with `BRAIN2_DB_PATH`).
+
+**Paid / cloud** (Supabase + API key):
+
+```bash
 uvicorn brain2.api.main:app --reload --port 8002
 ```
 
-The backend shares the same Supabase instance and schema as Divergence — apply the
-migrations in `supabase/migrations/` if you're starting fresh.
+The cloud backend shares the same Supabase instance and schema as Divergence — apply
+the migrations in `supabase/migrations/` if you're starting fresh, and set
+`BRAIN2_API_KEY=brain2_live_<anything>` plus the Supabase creds in `.env`.
 
 ### 2. VS Code extension
 
@@ -130,4 +166,4 @@ layout, API surface, and the MCP tool / plugin-skill mapping.
 - [x] Phase 1 — VS Code extension (triggers, capture, resume card)
 - [x] Phase 2 — Resume card polish (hypothesis prominent, auto-resume on focus)
 - [x] Phase 3 — Always-open explore seam (gap-band → pipeline → auto-refresh)
-- [ ] Claude Code plugin skills (`skills/` Markdown)
+- [x] Claude Code plugin skills (`skills/` Markdown)

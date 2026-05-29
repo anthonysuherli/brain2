@@ -19,7 +19,6 @@ from supabase import Client
 
 from brain2.agent.state import TenantContext
 from brain2.clients.anthropic import chat_model
-from brain2.clients.supabase import service_client
 from brain2.config import SynopsisConfig, get_config
 
 logger = logging.getLogger(__name__)
@@ -79,42 +78,26 @@ async def _build(findings: list[dict], cfg: SynopsisConfig) -> list[dict]:
 
 
 async def maybe_rebuild_synopsis(ctx: TenantContext) -> None:
-    """Fire-and-forget: rebuild the synopsis if the KB grew enough. Never raises."""
+    """Fire-and-forget: rebuild the synopsis if the KB grew enough. Never raises.
+
+    Reads/writes go through the active `Store` so both tiers share the path:
+    finding titles/categories come from `list_findings` and the spine is written
+    with `upsert_synopsis`. `live_count` is an exact `count_findings` (so the
+    delta trigger keeps firing past the 100-row list cap); the summary SAMPLE fed
+    to the builder is still the capped `list_findings` read."""
     try:
+        from brain2.store import get_store
+
         cfg = get_config().synopsis
-        sb = service_client()
-        count_res = (
-            sb.table("findings")
-            .select("id", count="exact")
-            .eq("kb_id", ctx.kb_id)
-            .limit(1)
-            .execute()
-        )
-        live_count = count_res.count or 0
-        row = load_synopsis(sb, ctx.kb_id)
+        store = get_store(ctx.access_token)
+        live_count = store.count_findings(ctx.kb_id)
+        listed = store.list_findings(ctx.kb_id, limit=100)
+        row = store.load_synopsis(ctx.kb_id)
         if not should_rebuild(live_count, row, cfg):
             return
-        rows = (
-            sb.table("findings")
-            .select("title, category")
-            .eq("kb_id", ctx.kb_id)
-            .order("created_at", desc=True)
-            .limit(200)
-            .execute()
-        ).data or []
-        findings = [f for f in rows if isinstance(f, dict)]
+        findings = [f for f in listed["findings"] if isinstance(f, dict)]
         content = await _build(findings, cfg)
-        sb.table("kb_synopsis").upsert(
-            {
-                "org_id": ctx.org_id,
-                "kb_id": ctx.kb_id,
-                "content": content,
-                "finding_count_at_build": live_count,
-                "model": cfg.model,
-                "built_at": datetime.now(timezone.utc).isoformat(),
-            },
-            on_conflict="kb_id",
-        ).execute()
+        store.upsert_synopsis(ctx.kb_id, content, live_count, cfg.model)
     except Exception:  # noqa: BLE001 — regen is best-effort, never breaks a turn
         logger.exception("synopsis rebuild failed for kb=%s", ctx.kb_id)
 

@@ -6,7 +6,6 @@ GET  /v1/explore/{id}/status     — poll status + findings
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from datetime import datetime, timezone
@@ -17,10 +16,10 @@ from pydantic import BaseModel
 from brain2.agent.synopsis import schedule_rebuild
 from brain2.api.auth import require_api_key
 from brain2.clients.embeddings import embed_batch
-from brain2.clients.supabase import service_client
 from brain2.config import get_config
 from brain2.exploration import run_exploration
 from brain2.interfaces.mcp.tenancy import resolve_tenant
+from brain2.store import get_store
 
 router = APIRouter(prefix="/v1", dependencies=[Depends(require_api_key)])
 logger = logging.getLogger(__name__)
@@ -61,22 +60,10 @@ async def start_explore(
     coverage band on a resume card is `gap`, this is the action to take.
     """
     ctx = resolve_tenant(project, kb, create=True)
-    sb = service_client()
     cfg = get_config().exploration
     max_findings = min(body.max_findings or cfg.default_max_findings, cfg.max_findings)
 
-    row = (
-        sb.table("explorations")
-        .insert({
-            "org_id": ctx.org_id,
-            "kb_id": ctx.kb_id,
-            "prompt": body.prompt,
-            "status": "pending",
-            "started_at": _now_iso(),
-        })
-        .execute()
-    )
-    exploration_id: str = row.data[0]["id"]
+    exploration_id = get_store().create_exploration(ctx.org_id, ctx.kb_id, body.prompt)
 
     background_tasks.add_task(
         _run_pipeline,
@@ -95,17 +82,9 @@ async def start_explore(
 async def explore_status(exploration_id: str) -> ExploreStatus:
     """Poll exploration progress. Status values: pending → planning → searching →
     crawling → extracting → merging → completed | failed."""
-    sb = service_client()
-    rows = (
-        sb.table("explorations")
-        .select("id, status, finding_ids, completed_at, error")
-        .eq("id", exploration_id)
-        .limit(1)
-        .execute()
-    ).data
-    if not rows:
+    row = get_store().get_exploration(exploration_id)
+    if not row:
         raise HTTPException(status_code=404, detail="exploration not found")
-    row = rows[0]
     finding_ids: list[str] = row.get("finding_ids") or []
     return ExploreStatus(
         exploration_id=exploration_id,
@@ -129,14 +108,14 @@ async def _run_pipeline(
     max_findings: int,
 ) -> None:
     """Run the exploration pipeline, persist findings, update the row."""
-    sb = service_client()
+    store = get_store(ctx.access_token)
     cfg = get_config().exploration
 
     async def on_progress(phase: str) -> None:
         _durable_phases = frozenset({"planning", "searching", "crawling", "extracting", "merging"})
         if phase in _durable_phases:
             try:
-                sb.table("explorations").update({"status": phase}).eq("id", exploration_id).execute()
+                store.update_exploration(exploration_id, status=phase)
             except Exception:
                 pass
 
@@ -151,20 +130,22 @@ async def _run_pipeline(
         )
         captured = findings[:max_findings]
         finding_ids = await _persist_findings(ctx, captured, exploration_id)
-        sb.table("explorations").update({
-            "status": "completed",
-            "completed_at": _now_iso(),
-            "finding_ids": finding_ids,
-        }).eq("id", exploration_id).execute()
+        store.update_exploration(
+            exploration_id,
+            status="completed",
+            completed_at=_now_iso(),
+            finding_ids=finding_ids,
+        )
         schedule_rebuild(ctx)
     except Exception as exc:
         logger.exception("exploration %s failed", exploration_id)
         try:
-            sb.table("explorations").update({
-                "status": "failed",
-                "completed_at": _now_iso(),
-                "error": str(exc),
-            }).eq("id", exploration_id).execute()
+            store.update_exploration(
+                exploration_id,
+                status="failed",
+                completed_at=_now_iso(),
+                error=str(exc),
+            )
         except Exception:
             pass
 
@@ -190,8 +171,7 @@ async def _persist_findings(ctx, findings: list, exploration_id: str) -> list[st
     embeddings = await embed_batch(contents)
     for row, emb in zip(rows, embeddings):
         row["embedding"] = emb
-    inserted = service_client().table("findings").insert(rows).execute()
-    return [r["id"] for r in inserted.data or []]
+    return await get_store(ctx.access_token).insert_findings(rows)
 
 
 def _render_content(content) -> str:

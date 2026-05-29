@@ -13,8 +13,8 @@ from __future__ import annotations
 from brain2.agent.state import TenantContext
 from brain2.agent.synopsis import schedule_rebuild
 from brain2.clients.embeddings import embed_batch
-from brain2.clients.supabase import user_client
 from brain2.config import get_config
+from brain2.store import get_store
 
 
 def chunk_text(text: str, max_chars: int | None = None) -> list[str]:
@@ -57,7 +57,6 @@ async def persist_chunks(
     if not chunks:
         return []
     embeddings = await embed_batch(chunks)
-    client = user_client(ctx.access_token)
     single = len(chunks) == 1
     rows = [
         {
@@ -73,8 +72,7 @@ async def persist_chunks(
         }
         for c, emb in zip(chunks, embeddings)
     ]
-    inserted = client.table("findings").insert(rows).execute()
-    return [r["id"] for r in (inserted.data or [])]
+    return await get_store(ctx.access_token).insert_findings(rows)
 
 
 async def ingest_text(

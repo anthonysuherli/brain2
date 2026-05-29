@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from brain2.agent.state import TenantContext
 from brain2.agent.synopsis import schedule_rebuild
-from brain2.clients.embeddings import embed_batch
-from brain2.clients.supabase import user_client
-
 from brain2.capture.adapter import snapshot_to_finding
 from brain2.capture.models import WorkspaceSnapshot
+from brain2.clients.embeddings import embed_batch
+from brain2.store import get_store
 
 
 async def persist_snapshot(ctx: TenantContext, snap: WorkspaceSnapshot) -> str:
@@ -30,7 +29,6 @@ async def persist_snapshot(ctx: TenantContext, snap: WorkspaceSnapshot) -> str:
         "provenance": payload["provenance"],
         "embedding": embedding,
     }
-    inserted = user_client(ctx.access_token).table("findings").insert(row).execute()
-    finding_id: str = inserted.data[0]["id"]
+    [finding_id] = await get_store(ctx.access_token).insert_findings([row])
     schedule_rebuild(ctx)
     return finding_id
