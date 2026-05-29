@@ -1,0 +1,55 @@
+"""Search-query planner.
+
+Ported from delapan's `features/exploration/planner.py`, EXPLORE mode only
+(no LEARN mode, no ontology — v0 has neither). One structured-output call via
+AI Gateway produces an `ExplorationPlan`.
+"""
+
+from __future__ import annotations
+
+from brain2.clients.ai_gateway import structured_completion
+from brain2.config import ExplorationConfig
+from brain2.exploration.models import ExplorationPlan
+
+_PLANNER_PROMPT = """\
+You are a search query planner for EXPLORATION mode. The user wants to discover \
+entities, relationships, and factual data about a subject — who, what, where, when.
+
+Generate 3-6 search queries with priority levels:
+- Priority 1: Core queries that directly address the prompt (always run)
+- Priority 2: Supplementary queries for additional context (run if few results from P1)
+
+For each query, optionally include a domain_filter (e.g., "site:crunchbase.com") \
+if a specific site is particularly relevant.
+
+Also provide:
+- extraction_prompt: DETAILED INSTRUCTIONS (not templates or examples) for extracting \
+ACTUAL entities, relationships, facts, and structured data. The extraction_prompt must \
+explicitly state: "Extract ACTUAL content from the pages, not template placeholders. \
+Every finding must have a concrete title with real information and a content dict with \
+real extracted data." Be extremely specific about required fields.
+- expected_categories: labels for finding types (e.g., "funding_round", "person_role", \
+"company_info", "partnership")
+- finding_title_hint: a template showing format only (e.g., "{entity_name}: {entity_type}"), \
+NOT to be included in extraction_prompt
+
+Focus on discovering concrete facts, entities, and their relationships. \
+Prefer exact phrases in quotes for names.
+
+CRITICAL: The extraction_prompt must instruct the extractor to return findings with \
+"title" containing ACTUAL extracted information (not placeholder text like [entity] or \
+[value]), and "content" as a non-empty dict with concrete extracted facts. Also include a \
+"layout_hint" field on every extracted item. Valid values: "headline", "stat", "table_row", \
+"narrative", "source_list". The extractor must NEVER return template strings or empty content."""
+
+
+async def plan_queries(prompt: str, cfg: ExplorationConfig) -> ExplorationPlan:
+    """Plan search queries + extraction instructions for `prompt`."""
+    return await structured_completion(
+        model=cfg.planner_model,
+        response_format=ExplorationPlan,
+        system=_PLANNER_PROMPT,
+        user=prompt,
+        temperature=cfg.temperature,
+        reasoning_effort=cfg.reasoning_effort,
+    )

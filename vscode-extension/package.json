@@ -1,0 +1,84 @@
+{
+  "name": "brain2",
+  "displayName": "brain2 — Context Resume",
+  "description": "Captures developer intent on interruption; replays it as a 30-second resume card on return.",
+  "version": "0.1.0",
+  "publisher": "brain2",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "brain2.capture",
+        "title": "brain2: Capture Current Context"
+      },
+      {
+        "command": "brain2.resume",
+        "title": "brain2: Show Resume Card"
+      },
+      {
+        "command": "brain2.signIn",
+        "title": "brain2: Sign In"
+      },
+      {
+        "command": "brain2.explore",
+        "title": "brain2: Explore External Sources"
+      }
+    ],
+    "configuration": {
+      "title": "brain2",
+      "properties": {
+        "brain2.apiUrl": {
+          "type": "string",
+          "default": "http://localhost:8002",
+          "description": "brain2 backend API URL"
+        },
+        "brain2.project": {
+          "type": "string",
+          "default": "",
+          "description": "KB project name (defaults to workspace folder name)"
+        },
+        "brain2.kb": {
+          "type": "string",
+          "default": "",
+          "description": "KB name (defaults to current git branch)"
+        },
+        "brain2.idleThresholdSeconds": {
+          "type": "number",
+          "default": 300,
+          "description": "Seconds of inactivity before an idle-trigger capture fires"
+        },
+        "brain2.enableBlurTrigger": {
+          "type": "boolean",
+          "default": true,
+          "description": "Capture on window blur (focus lost)"
+        },
+        "brain2.enableGitCheckoutTrigger": {
+          "type": "boolean",
+          "default": true,
+          "description": "Capture on git branch checkout"
+        },
+        "brain2.enableIdleTrigger": {
+          "type": "boolean",
+          "default": true,
+          "description": "Capture after idle threshold"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "vscode:prepublish": "node esbuild.js --production",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.4.0"
+  }
+}

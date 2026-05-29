@@ -1,0 +1,20 @@
+{
+  "name": "brain2",
+  "owner": {
+    "name": "Anthony Suherli",
+    "email": "anthonysuherli@gmail.com"
+  },
+  "metadata": {
+    "description": "Local dev marketplace for the brain2 plugin — context capture + 30-second resume card on a self-contained Divergence engine fork.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "brain2",
+      "source": "./",
+      "description": "Capture developer intent on interruption and replay it as a 30-second resume card. /brain2:resume, /brain2:capture, /brain2:search, /brain2:explore over the brain2 MCP server.",
+      "version": "0.1.0",
+      "strict": false
+    }
+  ]
+}

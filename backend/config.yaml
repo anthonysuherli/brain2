@@ -1,0 +1,18 @@
+# brain2 engine config — layered on top of Divergence defaults.
+# Override any section: env var B2_<SECTION>__<FIELD> takes highest precedence.
+
+agent:
+  model: "claude-sonnet-4-6"
+  fast_model: "claude-haiku-4-5"
+
+synopsis:
+  model: "claude-haiku-4-5"
+  rebuild_delta: 5          # snapshots accumulate faster than research findings
+
+search:
+  default_limit: 10
+  min_similarity: 0.0
+
+tiers:
+  rich_hit_count: 3
+  preamble_char_budget: 5000  # resume card is tighter than a full chat preamble
