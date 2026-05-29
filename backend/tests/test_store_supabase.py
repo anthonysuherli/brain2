@@ -37,12 +37,14 @@ class _Query:
         self.payload = None
         self.filters: dict = {}
         self.select_cols = None
+        self.select_kwargs: dict = {}
         self.order_col = None
         self.limit_n = None
 
     def select(self, cols, **kwargs):
         self.op = "select"
         self.select_cols = cols
+        self.select_kwargs = kwargs
         return self
 
     def insert(self, payload):
@@ -143,7 +145,7 @@ def test_import_smoke(monkeypatch):
     assert isinstance(get_store("tok"), SupabaseStore)
     # Store is a (non-runtime-checkable) Protocol; assert the surface is present.
     for m in ("match_findings", "insert_findings", "get_finding", "list_findings",
-              "delete_finding", "load_synopsis", "upsert_synopsis", "create_exploration",
+              "count_findings", "delete_finding", "load_synopsis", "upsert_synopsis", "create_exploration",
               "update_exploration", "get_exploration", "resolve_project", "resolve_kb",
               "record_access"):
         assert hasattr(SupabaseStore, m), m
@@ -236,6 +238,29 @@ def test_delete_finding(patch_clients):
     q = fake.queries[-1]
     assert q.table == "findings" and q.op == "delete"
     assert q.filters == {"kb_id": "kb1", "id": "f1"}
+
+
+# --- count_findings ---------------------------------------------------------
+
+
+def test_count_findings(patch_clients):
+    fake = patch_clients(
+        FakeClient(tables={"findings": _Result(data=[{"id": "f1"}], count=42)})
+    )
+    n = SupabaseStore("tok").count_findings("kb1")
+
+    assert n == 42
+    q = fake.queries[-1]
+    assert q.table == "findings" and q.op == "select"
+    assert q.select_kwargs == {"count": "exact"}
+    assert q.filters == {"kb_id": "kb1"}
+    assert q.limit_n == 1
+
+
+def test_count_findings_none_count_defaults_zero(patch_clients):
+    # No matching rows → .count is None → returns 0.
+    patch_clients(FakeClient(tables={"findings": _Result(data=[], count=None)}))
+    assert SupabaseStore().count_findings("kb1") == 0
 
 
 # --- exploration ------------------------------------------------------------

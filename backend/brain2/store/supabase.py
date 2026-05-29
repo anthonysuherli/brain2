@@ -128,6 +128,20 @@ class SupabaseStore:
         ).execute()
         return {"deleted": finding_id}
 
+    def count_findings(self, kb_id: str) -> int:
+        """Exact finding count for `kb_id` via a count="exact" head query.
+
+        Mirrors kbs/service.py kb_stats: a `count="exact"` select scoped to
+        `kb_id`, limited to one row (the count rides on the result, not the rows)."""
+        return (
+            self._user()
+            .table("findings")
+            .select("id", count="exact")
+            .eq("kb_id", kb_id)
+            .limit(1)
+            .execute()
+        ).count or 0
+
     # --- synopsis spine ------------------------------------------------------
 
     def load_synopsis(self, kb_id: str) -> dict | None:

@@ -82,17 +82,16 @@ async def maybe_rebuild_synopsis(ctx: TenantContext) -> None:
 
     Reads/writes go through the active `Store` so both tiers share the path:
     finding titles/categories come from `list_findings` and the spine is written
-    with `upsert_synopsis`. `live_count` is derived from the listed rows (capped
-    at the store's list limit, 100) rather than an exact COUNT(*) — the protocol
-    has no count method, and that cap only matters once a KB exceeds 100
-    findings, at which point the age-based rebuild trigger still fires."""
+    with `upsert_synopsis`. `live_count` is an exact `count_findings` (so the
+    delta trigger keeps firing past the 100-row list cap); the summary SAMPLE fed
+    to the builder is still the capped `list_findings` read."""
     try:
         from brain2.store import get_store
 
         cfg = get_config().synopsis
         store = get_store(ctx.access_token)
+        live_count = store.count_findings(ctx.kb_id)
         listed = store.list_findings(ctx.kb_id, limit=100)
-        live_count = listed["count"]
         row = store.load_synopsis(ctx.kb_id)
         if not should_rebuild(live_count, row, cfg):
             return

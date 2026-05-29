@@ -145,6 +145,8 @@ def test_synopsis_roundtrip_through_store(local_engine):
     assert row["content"] == [{"topic": "Scheduler", "gloss": "How jobs are queued"}]
     assert row["finding_count_at_build"] == 3
     assert row["model"] == "fake-model"
+    # built_at must be populated so the age-based rebuild trigger can fire locally.
+    assert row["built_at"]
 
 
 async def test_maybe_rebuild_synopsis_local(local_engine, monkeypatch):

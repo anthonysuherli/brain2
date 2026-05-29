@@ -265,6 +265,13 @@ class SQLiteStore:
         ]
         return {"count": len(findings), "findings": findings}
 
+    def count_findings(self, kb_id: str) -> int:
+        """Exact finding count for `kb_id` (uncapped, unlike list_findings)."""
+        r = self._conn.execute(
+            "SELECT COUNT(*) AS n FROM findings WHERE kb_id = ?;", (kb_id,)
+        ).fetchone()
+        return int(r["n"])
+
     def delete_finding(self, kb_id: str, finding_id: str) -> dict:
         """Delete one finding from `kb_id` (and its vec row). Returns {"deleted"}."""
         self._conn.execute(

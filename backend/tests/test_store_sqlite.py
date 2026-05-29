@@ -144,6 +144,26 @@ async def test_list_findings_count_order_filter_limit(store):
     assert limited["findings"][0]["title"] == "new"
 
 
+# --- count_findings ---------------------------------------------------------
+
+
+async def test_count_findings_exact_and_uncapped(store):
+    # Insert more than one and scoped to a single KB; count is exact.
+    await store.insert_findings(
+        [
+            _finding("kb1", title="A", category="doc", embedding=_vec([1.0])),
+            _finding("kb1", title="B", category="doc", embedding=_vec([0.0, 1.0])),
+            _finding("kb1", title="C", category="doc", embedding=_vec([0.0, 0.0, 1.0])),
+        ]
+    )
+    await store.insert_findings(
+        [_finding("kbX", title="other", category="doc", embedding=_vec([1.0]))]
+    )
+    assert store.count_findings("kb1") == 3
+    assert store.count_findings("kbX") == 1
+    assert store.count_findings("empty") == 0
+
+
 # --- delete_finding ---------------------------------------------------------
 
 
@@ -310,7 +330,7 @@ async def test_shape_parity_with_supabase(store):
     # The protocol surface matches SupabaseStore's.
     for m in (
         "match_findings", "insert_findings", "get_finding", "list_findings",
-        "delete_finding", "load_synopsis", "upsert_synopsis", "create_exploration",
+        "count_findings", "delete_finding", "load_synopsis", "upsert_synopsis", "create_exploration",
         "update_exploration", "get_exploration", "resolve_project", "resolve_kb",
         "record_access",
     ):

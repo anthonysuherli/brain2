@@ -50,6 +50,10 @@ class Store(Protocol):
         """Delete one finding from `kb_id`. Returns {"deleted": finding_id}."""
         ...
 
+    def count_findings(self, kb_id: str) -> int:
+        """Exact number of findings in `kb_id` (uncapped, unlike list_findings)."""
+        ...
+
     # --- synopsis spine ------------------------------------------------------
 
     def load_synopsis(self, kb_id: str) -> dict | None:
