@@ -44,6 +44,8 @@ _ORG = "local"
 # Column lists kept in lockstep with findings/service.py + the match RPC.
 _FINDING_COLS = ("id", "title", "content", "category", "confidence", "tags", "provenance", "created_at")
 _FINDING_LIST_COLS = ("id", "title", "category", "confidence", "tags", "created_at")
+# match_findings returns the full finding minus created_at, plus a computed similarity.
+_FINDING_MATCH_COLS = ("id", "title", "content", "category", "confidence", "tags", "provenance")
 
 LIST_DEFAULT_LIMIT = 20
 LIST_MAX_LIMIT = 100
@@ -92,13 +94,32 @@ class SQLiteStore:
 
     @staticmethod
     def _connect(db_path: str) -> sqlite3.Connection:
-        """Open a connection with sqlite-vec loaded and Row factory."""
+        """Open a connection with sqlite-vec loaded and Row factory.
+
+        File-backed DBs use WAL + a 5s ``busy_timeout`` so a background
+        ``explore`` write and a foreground ``capture``/``insert_findings`` write
+        block-and-retry instead of raising ``database is locked``. WAL is skipped
+        for ``:memory:`` (where it is unsupported/pointless); ``busy_timeout`` is
+        harmless everywhere."""
         conn = sqlite3.connect(db_path, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         conn.enable_load_extension(True)
         sqlite_vec.load(conn)
         conn.enable_load_extension(False)
+        conn.execute("PRAGMA busy_timeout=5000")
+        if db_path != ":memory:":
+            conn.execute("PRAGMA journal_mode=WAL")
         return conn
+
+    def close(self) -> None:
+        """Close the underlying connection. Explicit — no atexit/__del__ magic."""
+        self._conn.close()
+
+    def __enter__(self) -> "SQLiteStore":
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.close()
 
     def _ensure_schema(self) -> None:
         self._conn.executescript(_SCHEMA)
@@ -120,9 +141,10 @@ class SQLiteStore:
         descending similarity (= 1 - cosine distance), dropping rows below
         ``min_similarity``. JSON columns are decoded."""
         q = serialize_float32(query_embedding)
+        select_cols = ", ".join(f"f.{c}" for c in _FINDING_MATCH_COLS)
         rows = self._conn.execute(
-            """
-            SELECT f.id, f.title, f.content, f.category, f.confidence, f.tags, f.provenance,
+            f"""
+            SELECT {select_cols},
                    vec_distance_cosine(v.embedding, ?) AS dist
             FROM vec_findings v JOIN findings f ON f.id = v.finding_id
             WHERE f.kb_id = ?
@@ -194,7 +216,7 @@ class SQLiteStore:
     def get_finding(self, kb_id: str, finding_id: str) -> dict:
         """One finding scoped to `kb_id`. Raises if absent. JSON cols decoded."""
         r = self._conn.execute(
-            "SELECT id, title, content, category, confidence, tags, provenance, created_at "
+            f"SELECT {', '.join(_FINDING_COLS)} "
             "FROM findings WHERE kb_id = ? AND id = ? LIMIT 1;",
             (kb_id, finding_id),
         ).fetchone()
@@ -220,7 +242,7 @@ class SQLiteStore:
         optional category filter; default/max limits mirror findings/service."""
         n = min(limit or LIST_DEFAULT_LIMIT, LIST_MAX_LIMIT)
         sql = (
-            "SELECT id, title, category, confidence, tags, created_at "
+            f"SELECT {', '.join(_FINDING_LIST_COLS)} "
             "FROM findings WHERE kb_id = ?"
         )
         params: list[object] = [kb_id]

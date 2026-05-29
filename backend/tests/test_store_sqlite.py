@@ -7,6 +7,8 @@ fresh ``:memory:`` store so state never leaks between tests.
 
 from __future__ import annotations
 
+import sqlite3
+
 import pytest
 
 from brain2.store import SQLiteStore, SupabaseStore
@@ -251,6 +253,29 @@ async def test_record_access_noop(store):
         )
         is None
     )
+
+
+# --- connection lifecycle / pragmas -----------------------------------------
+
+
+def test_file_backed_db_uses_wal(tmp_path):
+    """File-backed DBs run in WAL so concurrent fg/bg writes block-and-retry."""
+    s = SQLiteStore(str(tmp_path / "brain.db"))
+    try:
+        mode = s._conn.execute("PRAGMA journal_mode;").fetchone()[0]
+        assert mode.lower() == "wal"
+        timeout = s._conn.execute("PRAGMA busy_timeout;").fetchone()[0]
+        assert timeout == 5000
+    finally:
+        s.close()
+
+
+def test_close_and_context_manager(tmp_path):
+    with SQLiteStore(str(tmp_path / "brain2.db")) as s:
+        assert s.list_findings("kb1") == {"count": 0, "findings": []}
+    # After close the connection is unusable.
+    with pytest.raises(sqlite3.ProgrammingError):
+        s._conn.execute("SELECT 1;")
 
 
 # --- interchangeability with SupabaseStore ----------------------------------
