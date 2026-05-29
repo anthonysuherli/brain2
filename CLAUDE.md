@@ -83,7 +83,7 @@ cp .env.example .env              # pick the FREE or PAID block (see file)
 **Free / local tier** (SQLite, no Supabase, no API key, loopback-only):
 
 ```bash
-BRAIN2_BACKEND=local uvicorn brain2.api.main:app --host 127.0.0.1 --port 8002
+BRAIN2_BACKEND=local python -m brain2.api.main   # blessed launcher: enforces loopback (auth is off)
 BRAIN2_BACKEND=local python -m brain2.interfaces.mcp.server
 ```
 

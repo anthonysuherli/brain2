@@ -65,3 +65,19 @@ def test_cloud_tier_valid_key_passes(monkeypatch):
         assert require_api_key(credentials=creds) is None
     finally:
         _reset_settings_cache()
+
+
+def test_run_local_tier_refuses_nonloopback_host(monkeypatch):
+    """Defense-in-depth: run() must refuse a non-loopback bind on the auth-less
+    local tier rather than silently exposing an unauthenticated API."""
+    from brain2.api.main import run
+
+    monkeypatch.setenv("BRAIN2_BACKEND", "local")
+    monkeypatch.setenv("BRAIN2_HOST", "0.0.0.0")
+    _reset_settings_cache()
+    try:
+        with pytest.raises(SystemExit) as exc:
+            run()
+        assert "loopback" in str(exc.value)
+    finally:
+        _reset_settings_cache()

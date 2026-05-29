@@ -48,8 +48,9 @@ Slash commands call the same engine from inside a Claude Code session:
 | `/brain2:search <q>` | Ask a question grounded in your captured session history |
 | `/brain2:explore <p>` | Force the gap-fill web-research pipeline |
 
-> The Claude Code plugin skills are planned; the MCP tools they call (`brain2_capture`,
-> `brain2_resume`, `brain2_explore`) are built and usable today.
+> The Claude Code plugin skills are built and available (`skills/`: capture, resume,
+> search, explore); the MCP tools they call (`brain2_capture`, `brain2_resume`,
+> `brain2_explore`) are built and usable today.
 
 ## Free vs Paid
 
@@ -81,10 +82,11 @@ python3.11 -m venv .venv          # or: uv venv
 cp .env.example .env              # pick the FREE or PAID block (see the file)
 ```
 
-**Free / local** (SQLite, no account, no API key):
+**Free / local** (SQLite, no account, no API key) — use the blessed launcher; it
+enforces loopback binding because the local tier disables API auth:
 
 ```bash
-BRAIN2_BACKEND=local uvicorn brain2.api.main:app --host 127.0.0.1 --port 8002
+BRAIN2_BACKEND=local python -m brain2.api.main   # binds 127.0.0.1:8002
 ```
 
 Set `OPENAI_API_KEY` (embeddings) and, optionally, `TAVILY_API_KEY` (explore) in
@@ -164,4 +166,4 @@ layout, API surface, and the MCP tool / plugin-skill mapping.
 - [x] Phase 1 — VS Code extension (triggers, capture, resume card)
 - [x] Phase 2 — Resume card polish (hypothesis prominent, auto-resume on focus)
 - [x] Phase 3 — Always-open explore seam (gap-band → pipeline → auto-refresh)
-- [ ] Claude Code plugin skills (`skills/` Markdown)
+- [x] Claude Code plugin skills (`skills/` Markdown)

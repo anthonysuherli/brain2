@@ -1,28 +1,41 @@
 """brain2 FastAPI application entry point.
 
-Cloud (paid) tier::
+Free (local) tier — the blessed launcher enforces loopback binding because the
+local tier disables API auth (see ``brain2.api.auth``)::
+
+    python -m brain2.api.main
+
+It binds 127.0.0.1:8002 by default; override with ``BRAIN2_HOST`` / ``BRAIN2_PORT``.
+On the local tier ``run()`` refuses any non-loopback host, so the unauthenticated
+API can never be exposed on a public interface.
+
+Cloud (paid) tier — auth is enforced by ``BRAIN2_API_KEY``, so raw uvicorn is fine::
 
     uvicorn brain2.api.main:app --reload --port 8002
-
-Free (local) tier — bind to loopback; no API key required (see brain2.api.auth)::
-
-    BRAIN2_BACKEND=local uvicorn brain2.api.main:app --host 127.0.0.1 --port 8002
-
-The local-tier auth bypass is safe ONLY because the server stays on 127.0.0.1.
-Do not pass ``--host 0.0.0.0`` on the local tier.
 """
 
 from __future__ import annotations
+
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from brain2.api import capture, explore, health, resume
 from brain2.config import get_settings
+from brain2.store import active_backend
+
+logger = logging.getLogger(__name__)
+
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    if active_backend() == "local":
+        logger.warning(
+            "local tier: API auth is DISABLED; ensure loopback binding."
+        )
     app = FastAPI(
         title="brain2",
         version="0.1.0",
@@ -43,3 +56,24 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+
+def run() -> None:
+    """Blessed local-run entrypoint: owns the bind host and refuses to expose the
+    auth-less local tier on a non-loopback interface."""
+    import os
+
+    import uvicorn
+
+    host = os.getenv("BRAIN2_HOST", "127.0.0.1")
+    port = int(os.getenv("BRAIN2_PORT", "8002"))
+    if active_backend() == "local" and host not in _LOOPBACK_HOSTS:
+        raise SystemExit(
+            f"Refusing to start: BRAIN2_BACKEND=local disables API auth, but host={host} "
+            f"is not loopback. Bind to 127.0.0.1, or use the cloud backend with BRAIN2_API_KEY."
+        )
+    uvicorn.run(app, host=host, port=port)
+
+
+if __name__ == "__main__":
+    run()
