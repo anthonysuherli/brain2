@@ -8,9 +8,10 @@ vs cloud Supabase) lands in a later task — for now this always returns Supabas
 from __future__ import annotations
 
 from brain2.store.base import Store
+from brain2.store.sqlite import SQLiteStore
 from brain2.store.supabase import SupabaseStore
 
-__all__ = ["Store", "SupabaseStore", "get_store"]
+__all__ = ["Store", "SupabaseStore", "SQLiteStore", "get_store"]
 
 
 def get_store(access_token: str | None = None) -> Store:
