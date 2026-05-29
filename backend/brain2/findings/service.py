@@ -41,7 +41,13 @@ def findings_for_report(ctx: TenantContext, *, limit: int = 200) -> list[dict]:
 
     Unlike `list_findings` (recency-ordered, no content), the report authoring
     pass needs the body text and wants the strongest evidence first; `limit` is
-    a safety cap over the whole KB."""
+    a safety cap over the whole KB.
+
+    CLOUD-ONLY (not yet flipped to the Store protocol): this still calls
+    `user_client` directly and has no in-tree callers — the report feature is a
+    future (Step 5) surface. On the local tier `ctx.access_token` is "", so this
+    would raise the no-creds error if ever invoked. When the report route lands,
+    add a confidence-ordered read to the Store protocol and route this through it."""
     return (
         user_client(ctx.access_token)
         .table("findings")

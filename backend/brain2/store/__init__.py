@@ -31,7 +31,13 @@ _local_stores: dict[str, SQLiteStore] = {}
 
 
 def _has_cloud_creds() -> bool:
-    """True iff the Supabase env vars needed for the cloud tier are present."""
+    """True iff the Supabase env vars needed for the cloud tier are present.
+
+    Note: `get_settings()` is `@lru_cache`d, so creds are sniffed once per
+    process. Changing Supabase env vars after the first read won't re-select the
+    backend until the cache is cleared (tests do this). Fine in production where
+    env is stable; set `BRAIN2_BACKEND` explicitly to avoid sniffing entirely.
+    """
     s = get_settings()
     return bool(s.supabase_url and s.supabase_service_role_key)
 

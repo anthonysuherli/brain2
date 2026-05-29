@@ -104,6 +104,11 @@ def resolve_tenant(project: str, kb: str, *, create: bool = True) -> TenantConte
         kb_id = store.resolve_kb(org_id, project_id, kb, create=create)
     else:
         # Cloud tier: real GoTrue identity feeds RLS-scoped finding ops.
+        # KNOWN FOLLOW-UP (cloud-only, non-blocking): this logs into GoTrue once
+        # here for the token, and SupabaseStore.resolve_project logs in AGAIN
+        # internally (+ a second org lookup). Same user/org, so it's a latency
+        # regression, not a correctness bug. Fix alongside the login-caching work
+        # noted above by threading the resolved (user_id, org_id) into the store.
         user_id, token = _login()
         org_id, project_id = store.resolve_project(project, create=create)
         kb_id = store.resolve_kb(org_id, project_id, kb, create=create)
