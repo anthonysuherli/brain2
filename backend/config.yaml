@@ -21,3 +21,13 @@ search:
 tiers:
   rich_hit_count: 3
   preamble_char_budget: 5000  # resume card is tighter than a full chat preamble
+
+exploration:
+  planner_model: "mistral/mistral-large-latest"
+  extraction_model: "mistral/mistral-large-latest"
+  extraction_fallback_model: "mistral/mistral-small-latest"
+  evaluation_model: "mistral/mistral-large-latest"
+
+activity:
+  task_model: "mistral/mistral-small-latest"
+  task_fallback_model: "mistral/mistral-small-latest"

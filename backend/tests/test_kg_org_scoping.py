@@ -97,3 +97,12 @@ async def test_upsert_kg_nodes_writes_store_org(monkeypatch):
     assert node_inserts, "expected the insert path to be exercised"
     for row in node_inserts:
         assert row["org_id"] == "org-X"
+
+
+def test_get_kg_subgraph_seeded_filters_by_org(monkeypatch):
+    sink, _ = _patch(monkeypatch)
+    sup.SupabaseStore(access_token="t", org_id="org-X").get_kg_subgraph(
+        "kb-1", seed_node_ids=["n1"]
+    )
+    # Both the edges query and the by-id nodes query must carry the org filter.
+    assert ("org_id", "org-X") in sink
