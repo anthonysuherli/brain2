@@ -19,6 +19,16 @@ class TenantContext:
 
 
 @dataclass
+class Principal:
+    """Authenticated caller for a cloud request (or the local single user)."""
+
+    user_id: str
+    org_id: str
+    access_token: str
+    is_service: bool = False
+
+
+@dataclass
 class StreamEvent:
     """Event emitted by the exploration tool pipeline."""
 
