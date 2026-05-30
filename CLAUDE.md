@@ -14,8 +14,14 @@ brain2 fully standalone.
 ### What's new (brain2-specific)
 
 - `brain2/capture/` — WorkspaceSnapshot model, snapshot→Finding adapter, persist service
-- `brain2/api/` — FastAPI: `/v1/capture`, `/v1/resume/{project}/{kb}`, `/v1/explore/...`
-- `brain2/interfaces/mcp/server.py` — MCP tools: `brain2_capture`, `brain2_resume`, `brain2_explore`
+- `brain2/knowledge_graph/` — the **activity KG**: per-user, cross-repo work graph
+  (`models.py` = node/edge carriers ported from divergence; `activity.py` = seeded
+  ontology + deterministic-plus-gated-LLM extraction, fire-and-forget population on
+  capture, and the query/rollup/stats read surfaces)
+- `brain2/api/` — FastAPI: `/v1/capture`, `/v1/resume/{project}/{kb}`, `/v1/explore/...`,
+  `/v1/activity/{graph,stats}`
+- `brain2/interfaces/mcp/server.py` — MCP tools: `brain2_capture`, `brain2_resume`,
+  `brain2_explore`, `brain2_activity`
 - `vscode-extension/` — VS Code extension (capture triggers + resume card webview)
 - `skills/` — Claude Code plugin skills (built; see Plugin section below)
 - `.claude-plugin/` — plugin manifest + local dev marketplace; root `.mcp.json` wires the brain2 MCP server
@@ -33,7 +39,10 @@ brain2 fully standalone.
 - `agent/graph.py` — LangGraph chat agent
 - `api/agent.py`, `api/public.py`, `api/internal.py` — chat + deploy surfaces
 - `research/` — HTML report generation
-- `knowledge_graph/` — KG builder (not used by the capture/resume loop)
+- `knowledge_graph/` (generic KG) — the divergence build_graph/propose_schema/extractor
+  machinery (user-curated ontology over all findings) stays excluded. brain2's
+  `knowledge_graph/` ports only `models.py` and adds its own **activity** graph; the
+  generic finding→graph builder is not needed by the capture/resume loop.
 - `monitoring/service.py`, `monitoring/report.py` — only `recorder.py` is copied
 
 ## Storage tiers
@@ -50,6 +59,12 @@ never touches a storage client directly — it calls `store = get_store()`.
   - `SupabaseStore` (paid/cloud) — wraps today's `service_client()` / `user_client()`
     calls (GoTrue + pgvector + RLS). Built fresh per request (carries the per-request
     `access_token` for RLS scope).
+  - The protocol also carries the **activity-graph** surface (`upsert_kg_nodes`,
+    `upsert_kg_edges`, `match_kg_nodes`, `get_kg_subgraph`, `list_kg_nodes`,
+    `kg_stats`). SQLite adds `kg_nodes`/`vec_kg_nodes`/`kg_edges` tables; Supabase
+    reuses divergence's existing `kg_nodes`/`kg_edges` + `match_kg_nodes` RPC. Node
+    dedupe is exact `(kb_id, type, label)`; stored label embeddings power only
+    semantic subgraph seeding, never dedupe.
 - **Selection** — `active_backend()` / `get_store()` read `BRAIN2_BACKEND`
   (`"local"` | `"cloud"`); if unset, cloud iff Supabase creds present, else local.
   `active_backend()` is importable from `brain2.store`.
@@ -121,6 +136,13 @@ npm run build
 - [x] Storage tiers — `Store` protocol + `SQLiteStore`/`SupabaseStore`, `get_store()`/
   `active_backend()` selection, free-tier local entry points (no-auth loopback API +
   local MCP). Paid value props (sync/cross-repo/managed-keys/teams) remain future.
+- [x] Activity KG — per-user, cross-repo work graph that auto-populates on every
+  capture (deterministic structural pass + gated LLM task distillation), on both
+  tiers via the `Store` graph surface. Surfaces: `brain2_activity` MCP tool,
+  cross-repo rollup on the resume card, `/v1/activity/{graph,stats}`. Best-effort:
+  a graph failure never breaks a capture. Gates: `BRAIN2_ACTIVITY_KG` (master,
+  default on), `BRAIN2_ACTIVITY_LLM` (task pass, default on — off = deterministic
+  only). Design: `docs/plans/2026-05-30-activity-kg-design.md`.
 
 ## API surface
 
@@ -131,6 +153,8 @@ npm run build
 | `/v1/resume/{project}/{kb}` | GET | Tap KB → 30-sec resume card HTML + preamble |
 | `/v1/explore/{project}/{kb}` | POST | Start gap-fill pipeline (returns exploration_id) |
 | `/v1/explore/{id}/status` | GET | Poll exploration progress + results |
+| `/v1/activity/graph` | GET | Query the cross-repo activity graph (semantic `q`, optional `repo`) |
+| `/v1/activity/stats` | GET | Activity-graph totals + hotspots (most-touched repos/files/tasks) |
 
 ## MCP tools (for Claude Code)
 
@@ -139,6 +163,7 @@ npm run build
 | `brain2_capture` | Persist a workspace snapshot |
 | `brain2_resume` | Tap KB → resume card (preamble + coverage) |
 | `brain2_explore` | Run gap-fill pipeline synchronously (blocks ~1-3 min) |
+| `brain2_activity` | Query the cross-repo activity graph (subgraph + NL summary) |
 
 ## Plugin (Claude Code skills)
 
@@ -153,6 +178,7 @@ skills/
   capture/SKILL.md            /brain2:capture — save current context
   search/SKILL.md             /brain2:search <q> — grounded answer from session KB
   explore/SKILL.md            /brain2:explore <p> — force the gap-fill pipeline
+  activity/SKILL.md           /brain2:activity <q> — query the cross-repo activity graph
 ```
 
 **Target resolution** (simpler than Divergence — no active-KB state):

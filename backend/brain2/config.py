@@ -139,6 +139,36 @@ class EmbeddingConfig(BaseModel):
     chunk_max_chars: int = 1800
 
 
+class ActivityConfig(BaseModel):
+    """Activity knowledge graph — the per-user, cross-repo work graph.
+
+    Populated automatically on every capture: a deterministic structural pass
+    (Repo/Branch/File/Session nodes from snapshot fields) plus an optional LLM
+    pass that distils the one-line ``hypothesis`` into a concise Task label.
+    Both passes are best-effort and never block or fail a capture.
+    """
+
+    # Reserved per-org namespace for the activity graph (one KB per user/org).
+    project_name: str = "__activity__"
+    kb_name: str = "default"
+
+    # LLM task distillation (hypothesis → short Task label). When disabled or it
+    # fails, the raw hypothesis is used as the Task label — the graph still grows.
+    task_model: str = "claude-haiku-4-5"
+    task_fallback_model: str = "openai/gpt-5.4-mini"
+    temperature: float = 0.0
+    max_task_label_chars: int = 80
+
+    # Caps on what one capture contributes, so a noisy snapshot can't flood the graph.
+    max_files_per_session: int = 12
+    # Semantic subgraph seeding (brain2_activity query / GET /v1/activity/graph?q=).
+    query_min_similarity: float = 0.25
+    subgraph_node_cap: int = 200
+    subgraph_edge_cap: int = 600
+    # Rollup shown on the cross-repo resume card.
+    rollup_sessions: int = 6
+
+
 class PublicApiConfig(BaseModel):
     preamble_default_limit: int = 12
     preamble_max_limit: int = 40
@@ -168,6 +198,7 @@ class AppConfig(BaseModel):
     synopsis: SynopsisConfig = Field(default_factory=SynopsisConfig)
     exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
     embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
+    activity: ActivityConfig = Field(default_factory=ActivityConfig)
     public_api: PublicApiConfig = Field(default_factory=PublicApiConfig)
     monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
 

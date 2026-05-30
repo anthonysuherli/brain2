@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from brain2.agent.preamble import select_preamble
 from brain2.api.auth import require_api_key
 from brain2.interfaces.mcp.tenancy import resolve_tenant
+from brain2.knowledge_graph.activity import activity_rollup
 from brain2.store import get_store
 
 router = APIRouter(prefix="/v1", dependencies=[Depends(require_api_key)])
@@ -24,6 +25,7 @@ class ResumeResponse(BaseModel):
     project: str
     kb: str
     snapshot_count: int
+    activity: list[dict] = []
 
 
 @router.get("/resume/{project}/{kb}", response_model=ResumeResponse)
@@ -48,12 +50,16 @@ async def resume(
         ctx.kb_id, category="snapshot", limit=100
     )["count"]
 
+    # Cross-repo activity rollup (empty before any capture); newest-first.
+    rollup = activity_rollup()
+
     card_html = _render_card(
         preamble_xml,
         coverage=coverage,
         project=project,
         kb=kb,
         snapshot_count=snapshot_count,
+        activity=rollup,
     )
     return ResumeResponse(
         coverage=coverage,
@@ -62,6 +68,7 @@ async def resume(
         project=project,
         kb=kb,
         snapshot_count=snapshot_count,
+        activity=rollup,
     )
 
 
@@ -147,6 +154,7 @@ def _render_card(
     project: str,
     kb: str,
     snapshot_count: int,
+    activity: list[dict] | None = None,
 ) -> str:
     try:
         root = ET.fromstring(preamble_xml)
@@ -221,6 +229,25 @@ def _render_card(
             parts.append("</div>")
         parts.append("</div>")
 
+    # Cross-repo activity rollup — where you've been working, across repos
+    if activity:
+        parts.append('<div class="snapshots">')
+        parts.append('<div class="section-label">Across repos</div>')
+        for entry in activity[:5]:
+            repo = entry.get("repo") or ""
+            branch = entry.get("branch") or ""
+            where = f"{repo}/{branch}" if branch else repo
+            ts = _fmt_ts(entry.get("captured_at") or "")
+            hypo = entry.get("hypothesis") or ""
+            parts.append('<div class="snapshot">')
+            if where:
+                parts.append(f'<div class="snap-title">{escape(where)}</div>')
+            meta_bits = " · ".join(b for b in (ts, hypo) if b)
+            if meta_bits:
+                parts.append(f'<div class="snap-meta">{escape(meta_bits)}</div>')
+            parts.append("</div>")
+        parts.append("</div>")
+
     # Explore CTA when coverage is gap
     if coverage == "gap":
         parts.append('<div class="explore-bar">')
@@ -290,6 +317,13 @@ def _extract_hypothesis(findings: list[dict]) -> str | None:
 def _extract_timestamp(content: str) -> str:
     m = re.search(r"Captured (\d{4}-\d{2}-\d{2} \d{2}:\d{2}) UTC", content)
     return m.group(1) if m else ""
+
+
+def _fmt_ts(iso: str) -> str:
+    """ISO-8601 captured_at → 'YYYY-MM-DD HH:MM' (best-effort; empty stays empty)."""
+    if not iso:
+        return ""
+    return iso[:16].replace("T", " ")
 
 
 def _extract_field(content: str, field: str) -> str:

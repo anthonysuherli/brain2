@@ -90,6 +90,65 @@ class Store(Protocol):
         """Resolve the named KB within (org_id, project_id) → kb_id."""
         ...
 
+    # --- activity knowledge graph --------------------------------------------
+    # Nodes/edges live in their own per-KB namespace (`kb_id` = the reserved
+    # activity KB). Dedupe is by exact ``(type, normalized label)`` so a repo or
+    # file resolves to one stable node; a stored label `embedding` is used only
+    # for semantic subgraph seeding, never for dedupe.
+
+    async def upsert_kg_nodes(self, kb_id: str, nodes: list[dict]) -> list[str]:
+        """Insert-or-merge nodes; return their ids in input order.
+
+        Each row carries ``org_id, type, label, properties, grounded_in,
+        embedding``. A row whose ``(type, normalized label)`` already exists in
+        ``kb_id`` reuses that node (merging ``properties`` + ``grounded_in``);
+        duplicates within the batch resolve to the same id."""
+        ...
+
+    async def upsert_kg_edges(self, kb_id: str, edges: list[dict]) -> int:
+        """Insert edges, skipping duplicates; return the number newly inserted.
+
+        Each row carries ``org_id, source_node_id, target_node_id, relation,
+        properties, grounded_in``. An edge equal to an existing one on
+        ``(source, target, relation)`` is skipped (idempotent re-capture)."""
+        ...
+
+    async def match_kg_nodes(
+        self,
+        kb_id: str,
+        query_embedding: list[float],
+        match_count: int,
+        min_similarity: float,
+    ) -> list[dict]:
+        """Semantic node search in `kb_id`; rows carry a `similarity` field."""
+        ...
+
+    def get_kg_subgraph(
+        self,
+        kb_id: str,
+        *,
+        seed_node_ids: list[str] | None = None,
+        node_cap: int = 200,
+        edge_cap: int = 600,
+    ) -> dict:
+        """Return ``{"nodes", "edges"}`` for `kb_id`.
+
+        With ``seed_node_ids`` → those nodes, their incident edges, and the
+        immediate neighbours (one hop). Without → the whole graph, capped."""
+        ...
+
+    def list_kg_nodes(
+        self, kb_id: str, *, type: str | None = None, limit: int | None = None
+    ) -> list[dict]:
+        """Most-recent nodes in `kb_id` (optionally one type). Rows carry
+        ``id, type, label, properties, created_at``."""
+        ...
+
+    def kg_stats(self, kb_id: str) -> dict:
+        """Graph totals + breakdowns: ``node_count, edge_count, by_type,
+        by_relation``."""
+        ...
+
     # --- monitoring — best-effort --------------------------------------------
 
     async def record_access(

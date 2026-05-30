@@ -66,8 +66,23 @@ CREATE TABLE IF NOT EXISTS kb_synopsis (
 CREATE TABLE IF NOT EXISTS explorations (
   id TEXT PRIMARY KEY, org_id TEXT, kb_id TEXT NOT NULL, prompt TEXT,
   status TEXT, error TEXT, finding_ids TEXT, started_at TEXT, completed_at TEXT, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS kg_nodes (
+  id TEXT PRIMARY KEY, org_id TEXT, kb_id TEXT NOT NULL,
+  type TEXT, label TEXT, properties TEXT, grounded_in TEXT, created_at TEXT NOT NULL);
+CREATE VIRTUAL TABLE IF NOT EXISTS vec_kg_nodes USING vec0(node_id TEXT, embedding float[1536]);
+CREATE TABLE IF NOT EXISTS kg_edges (
+  id TEXT PRIMARY KEY, org_id TEXT, kb_id TEXT NOT NULL,
+  source_node_id TEXT, target_node_id TEXT, relation TEXT,
+  properties TEXT, grounded_in TEXT, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_findings_kb ON findings(kb_id);
+CREATE INDEX IF NOT EXISTS idx_kg_nodes_kb ON kg_nodes(kb_id);
+CREATE INDEX IF NOT EXISTS idx_kg_nodes_dedupe ON kg_nodes(kb_id, type, label);
+CREATE INDEX IF NOT EXISTS idx_kg_edges_kb ON kg_edges(kb_id);
 """
+
+# Cap on how many grounding finding ids a long-lived node (a repo touched for
+# months) accumulates — keep the most recent, so the column can't grow unbounded.
+_MAX_GROUNDED = 50
 
 
 def _now_iso() -> str:
@@ -429,6 +444,248 @@ class SQLiteStore:
         )
         self._conn.commit()
         return str(insert["id"])
+
+    # --- activity knowledge graph --------------------------------------------
+
+    async def upsert_kg_nodes(self, kb_id: str, nodes: list[dict]) -> list[str]:
+        """Insert-or-merge nodes by exact ``(kb_id, type, label)``; ids in order.
+
+        A repeated ``(type, label)`` — within the batch or already in the KB —
+        reuses the existing node, merging ``properties`` (existing wins, so a
+        node's identity is stable) and unioning ``grounded_in`` (capped to the
+        most recent ``_MAX_GROUNDED``). Embeddings, when present, are written to
+        ``vec_kg_nodes`` for semantic seeding."""
+        if not nodes:
+            return []
+        ids: list[str] = []
+        batch: dict[tuple[str, str], str] = {}
+        for nd in nodes:
+            typ = nd.get("type") or ""
+            label = nd.get("label") or ""
+            props = dict(nd.get("properties") or {})
+            grounded = list(nd.get("grounded_in") or [])
+            key = (typ, label)
+            if key in batch:
+                nid = batch[key]
+                self._merge_kg_node(nid, props, grounded)
+                ids.append(nid)
+                continue
+            existing = self._conn.execute(
+                "SELECT id FROM kg_nodes WHERE kb_id = ? AND type = ? AND label = ? LIMIT 1;",
+                (kb_id, typ, label),
+            ).fetchone()
+            if existing is not None:
+                nid = existing["id"]
+                self._merge_kg_node(nid, props, grounded)
+            else:
+                nid = uuid.uuid4().hex
+                self._conn.execute(
+                    """
+                    INSERT INTO kg_nodes
+                      (id, org_id, kb_id, type, label, properties, grounded_in, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                    """,
+                    (nid, _ORG, kb_id, typ, label, json.dumps(props),
+                     json.dumps(grounded[-_MAX_GROUNDED:]), _now_iso()),
+                )
+                embedding = nd.get("embedding")
+                if embedding is not None:
+                    self._conn.execute(
+                        "INSERT INTO vec_kg_nodes (node_id, embedding) VALUES (?, ?);",
+                        (nid, serialize_float32(list(embedding))),
+                    )
+            batch[key] = nid
+            ids.append(nid)
+        self._conn.commit()
+        return ids
+
+    def _merge_kg_node(self, node_id: str, props: dict, grounded: list[str]) -> None:
+        """Merge into an existing node: existing properties win; grounding unions."""
+        row = self._conn.execute(
+            "SELECT properties, grounded_in FROM kg_nodes WHERE id = ?;", (node_id,)
+        ).fetchone()
+        if row is None:
+            return
+        existing_props = _json_load(row["properties"], {})
+        if not isinstance(existing_props, dict):
+            existing_props = {}
+        existing_grounded = _json_load(row["grounded_in"], [])
+        if not isinstance(existing_grounded, list):
+            existing_grounded = []
+        merged_props = {**props, **existing_props}
+        merged_grounded = list(dict.fromkeys([*existing_grounded, *grounded]))[-_MAX_GROUNDED:]
+        self._conn.execute(
+            "UPDATE kg_nodes SET properties = ?, grounded_in = ? WHERE id = ?;",
+            (json.dumps(merged_props), json.dumps(merged_grounded), node_id),
+        )
+
+    async def upsert_kg_edges(self, kb_id: str, edges: list[dict]) -> int:
+        """Insert edges, skipping self-loops, dangling ids, and existing
+        ``(source, target, relation)`` triples. Returns the count inserted."""
+        if not edges:
+            return 0
+        inserted = 0
+        for e in edges:
+            sid = e.get("source_node_id")
+            tid = e.get("target_node_id")
+            rel = e.get("relation") or ""
+            if not sid or not tid or sid == tid:
+                continue
+            dupe = self._conn.execute(
+                "SELECT 1 FROM kg_edges WHERE kb_id = ? AND source_node_id = ? "
+                "AND target_node_id = ? AND relation = ? LIMIT 1;",
+                (kb_id, sid, tid, rel),
+            ).fetchone()
+            if dupe is not None:
+                continue
+            self._conn.execute(
+                """
+                INSERT INTO kg_edges
+                  (id, org_id, kb_id, source_node_id, target_node_id, relation,
+                   properties, grounded_in, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (uuid.uuid4().hex, _ORG, kb_id, sid, tid, rel,
+                 json.dumps(dict(e.get("properties") or {})),
+                 json.dumps(list(e.get("grounded_in") or [])), _now_iso()),
+            )
+            inserted += 1
+        self._conn.commit()
+        return inserted
+
+    async def match_kg_nodes(
+        self,
+        kb_id: str,
+        query_embedding: list[float],
+        match_count: int,
+        min_similarity: float,
+    ) -> list[dict]:
+        """Cosine KNN over vec_kg_nodes joined to kg_nodes; rows carry `similarity`."""
+        q = serialize_float32(query_embedding)
+        rows = self._conn.execute(
+            """
+            SELECT n.id, n.type, n.label, n.properties,
+                   vec_distance_cosine(v.embedding, ?) AS dist
+            FROM vec_kg_nodes v JOIN kg_nodes n ON n.id = v.node_id
+            WHERE n.kb_id = ?
+            ORDER BY dist LIMIT ?;
+            """,
+            (q, kb_id, match_count),
+        ).fetchall()
+        out: list[dict] = []
+        for r in rows:
+            similarity = 1.0 - float(r["dist"])
+            if similarity < min_similarity:
+                continue
+            out.append({
+                "id": r["id"],
+                "type": r["type"],
+                "label": r["label"],
+                "properties": _json_load(r["properties"], {}),
+                "similarity": similarity,
+            })
+        return out
+
+    def get_kg_subgraph(
+        self,
+        kb_id: str,
+        *,
+        seed_node_ids: list[str] | None = None,
+        node_cap: int = 200,
+        edge_cap: int = 600,
+    ) -> dict:
+        """Seeded → seeds + incident edges + one-hop neighbours; else whole graph."""
+        if seed_node_ids:
+            ids = list(dict.fromkeys(seed_node_ids))
+            ph = ",".join("?" for _ in ids)
+            edge_rows = self._conn.execute(
+                f"SELECT id, source_node_id, target_node_id, relation, properties, grounded_in "
+                f"FROM kg_edges WHERE kb_id = ? "
+                f"AND (source_node_id IN ({ph}) OR target_node_id IN ({ph})) LIMIT ?;",
+                (kb_id, *ids, *ids, edge_cap),
+            ).fetchall()
+            node_id_set = set(ids)
+            for er in edge_rows:
+                node_id_set.add(er["source_node_id"])
+                node_id_set.add(er["target_node_id"])
+            wanted = list(node_id_set)[:node_cap]
+            nph = ",".join("?" for _ in wanted)
+            node_rows = (
+                self._conn.execute(
+                    f"SELECT id, type, label, properties FROM kg_nodes "
+                    f"WHERE kb_id = ? AND id IN ({nph});",
+                    (kb_id, *wanted),
+                ).fetchall()
+                if wanted
+                else []
+            )
+        else:
+            node_rows = self._conn.execute(
+                "SELECT id, type, label, properties FROM kg_nodes WHERE kb_id = ? LIMIT ?;",
+                (kb_id, node_cap),
+            ).fetchall()
+            edge_rows = self._conn.execute(
+                "SELECT id, source_node_id, target_node_id, relation, properties, grounded_in "
+                "FROM kg_edges WHERE kb_id = ? LIMIT ?;",
+                (kb_id, edge_cap),
+            ).fetchall()
+        nodes = [
+            {"id": r["id"], "type": r["type"], "label": r["label"],
+             "properties": _json_load(r["properties"], {})}
+            for r in node_rows
+        ]
+        edges = [
+            {"id": r["id"], "source_node_id": r["source_node_id"],
+             "target_node_id": r["target_node_id"], "relation": r["relation"],
+             "properties": _json_load(r["properties"], {})}
+            for r in edge_rows
+        ]
+        return {"nodes": nodes, "edges": edges}
+
+    def list_kg_nodes(
+        self, kb_id: str, *, type: str | None = None, limit: int | None = None
+    ) -> list[dict]:
+        """Most-recent nodes in `kb_id` (optionally one type), newest first."""
+        n = min(limit or 50, 500)
+        sql = "SELECT id, type, label, properties, created_at FROM kg_nodes WHERE kb_id = ?"
+        params: list[object] = [kb_id]
+        if type:
+            sql += " AND type = ?"
+            params.append(type)
+        sql += " ORDER BY created_at DESC LIMIT ?;"
+        params.append(n)
+        rows = self._conn.execute(sql, params).fetchall()
+        return [
+            {"id": r["id"], "type": r["type"], "label": r["label"],
+             "properties": _json_load(r["properties"], {}), "created_at": r["created_at"]}
+            for r in rows
+        ]
+
+    def kg_stats(self, kb_id: str) -> dict:
+        """Node/edge totals + counts by node type and by relation."""
+        node_count = self._conn.execute(
+            "SELECT COUNT(*) AS n FROM kg_nodes WHERE kb_id = ?;", (kb_id,)
+        ).fetchone()["n"]
+        edge_count = self._conn.execute(
+            "SELECT COUNT(*) AS n FROM kg_edges WHERE kb_id = ?;", (kb_id,)
+        ).fetchone()["n"]
+        by_type: dict[str, int] = {}
+        for r in self._conn.execute(
+            "SELECT type, COUNT(*) AS n FROM kg_nodes WHERE kb_id = ? GROUP BY type;", (kb_id,)
+        ).fetchall():
+            by_type[r["type"] or "unknown"] = r["n"]
+        by_relation: dict[str, int] = {}
+        for r in self._conn.execute(
+            "SELECT relation, COUNT(*) AS n FROM kg_edges WHERE kb_id = ? GROUP BY relation;",
+            (kb_id,),
+        ).fetchall():
+            by_relation[r["relation"] or "unknown"] = r["n"]
+        return {
+            "node_count": int(node_count),
+            "edge_count": int(edge_count),
+            "by_type": by_type,
+            "by_relation": by_relation,
+        }
 
     # --- monitoring — best-effort --------------------------------------------
 

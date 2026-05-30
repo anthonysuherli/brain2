@@ -26,6 +26,7 @@ from brain2.config import get_config, get_settings
 from brain2.exploration import run_exploration
 from brain2.interfaces.mcp.banner import BRAIN2_BANNER
 from brain2.interfaces.mcp.tenancy import resolve_tenant
+from brain2.knowledge_graph.activity import query_activity, schedule_activity_update
 from brain2.monitoring.recorder import PREAMBLE_TARGETS
 from brain2.store import get_store
 
@@ -67,6 +68,7 @@ async def brain2_capture(
     )
     ctx = resolve_tenant(project, kb, create=True)
     finding_id = await persist_snapshot(ctx, snap)
+    schedule_activity_update(snap, finding_id)  # fire-and-forget; best-effort
     return {"finding_id": finding_id, "project": project, "kb": kb}
 
 
@@ -138,6 +140,22 @@ async def brain2_explore(
         "project": project,
         "kb": kb,
     }
+
+
+@mcp.tool()
+async def brain2_activity(query: str | None = None, repo: str | None = None) -> dict:
+    """Query your cross-repo ACTIVITY graph — what you've been working on.
+
+    The activity graph accumulates automatically from every `brain2_capture`:
+    repos, branches, files, work sessions, and the tasks behind them, across all
+    your projects. Ask it things like "what was I doing in brain2 last" or "what
+    touches the store layer".
+
+    `query` seeds a semantic subgraph (omit for the whole graph); `repo` narrows
+    to one repository. Returns `{nodes, edges, summary}` — `summary` is a short
+    natural-language rollup; `nodes`/`edges` are the graph slice.
+    """
+    return await query_activity(query, repo=repo)
 
 
 def main() -> None:

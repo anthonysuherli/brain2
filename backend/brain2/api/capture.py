@@ -9,6 +9,7 @@ from brain2.api.auth import require_api_key
 from brain2.capture.models import WorkspaceSnapshot
 from brain2.capture.service import persist_snapshot
 from brain2.interfaces.mcp.tenancy import resolve_tenant
+from brain2.knowledge_graph.activity import schedule_activity_update
 
 router = APIRouter(prefix="/v1", dependencies=[Depends(require_api_key)])
 
@@ -55,4 +56,5 @@ async def capture(body: SnapshotRequest) -> CaptureResponse:
     )
     ctx = resolve_tenant(body.project, body.kb, create=True)
     finding_id = await persist_snapshot(ctx, snap)
+    schedule_activity_update(snap, finding_id)  # fire-and-forget; best-effort
     return CaptureResponse(finding_id=finding_id, coverage="sparse")

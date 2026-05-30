@@ -21,7 +21,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from brain2.api import capture, explore, health, resume
+from brain2.api import activity, capture, explore, health, resume
 from brain2.config import get_settings
 from brain2.store import active_backend
 
@@ -57,6 +57,7 @@ def create_app() -> FastAPI:
     app.include_router(capture.router)
     app.include_router(resume.router)
     app.include_router(explore.router)
+    app.include_router(activity.router)
     return app
 
 

@@ -39,6 +39,9 @@ _FINDING_LIST_COLS = "id, title, category, confidence, tags, created_at"
 LIST_DEFAULT_LIMIT = 20
 LIST_MAX_LIMIT = 100
 
+# Cap on grounding finding ids per node — keep the most recent (see SQLiteStore).
+_MAX_GROUNDED = 50
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -238,6 +241,207 @@ class SupabaseStore:
             {"org_id": org_id, "project_id": project_id, "name": name},
             create,
         )
+
+    # --- activity knowledge graph --------------------------------------------
+    # Reuses divergence's existing `kg_nodes`/`kg_edges` tables and the
+    # `match_kg_nodes` RPC (migration 0003) — same instance, same schema. Writes
+    # go through the service client (KG ownership is verified by tenancy first,
+    # mirroring divergence's builder). Dedupe is exact `(kb_id, type, label)`.
+
+    async def upsert_kg_nodes(self, kb_id: str, nodes: list[dict]) -> list[str]:
+        """Insert-or-merge nodes by exact ``(kb_id, type, label)``; ids in order."""
+        if not nodes:
+            return []
+        sb = service_client()
+        ids: list[str] = []
+        batch: dict[tuple[str, str], str] = {}
+        for nd in nodes:
+            typ = nd.get("type") or ""
+            label = nd.get("label") or ""
+            props = dict(nd.get("properties") or {})
+            grounded = list(nd.get("grounded_in") or [])
+            key = (typ, label)
+            if key in batch:
+                self._merge_kg_node(sb, batch[key], props, grounded)
+                ids.append(batch[key])
+                continue
+            existing = (
+                sb.table("kg_nodes").select("id")
+                .eq("kb_id", kb_id).eq("type", typ).eq("label", label)
+                .limit(1).execute()
+            ).data
+            if existing:
+                nid = existing[0]["id"]
+                self._merge_kg_node(sb, nid, props, grounded)
+            else:
+                row = {
+                    "org_id": nd.get("org_id"),
+                    "kb_id": kb_id,
+                    "type": typ,
+                    "label": label,
+                    "properties": props,
+                    "grounded_in": grounded[-_MAX_GROUNDED:],
+                }
+                if nd.get("embedding") is not None:
+                    row["embedding"] = list(nd["embedding"])
+                nid = sb.table("kg_nodes").insert(row).execute().data[0]["id"]
+            batch[key] = nid
+            ids.append(nid)
+        return ids
+
+    def _merge_kg_node(self, sb, node_id: str, props: dict, grounded: list[str]) -> None:
+        """Merge into an existing node: existing properties win; grounding unions."""
+        cur = (
+            sb.table("kg_nodes").select("properties, grounded_in")
+            .eq("id", node_id).limit(1).execute()
+        ).data
+        if not cur:
+            return
+        merged_props = {**props, **(cur[0].get("properties") or {})}
+        merged_grounded = list(
+            dict.fromkeys([*(cur[0].get("grounded_in") or []), *grounded])
+        )[-_MAX_GROUNDED:]
+        sb.table("kg_nodes").update(
+            {"properties": merged_props, "grounded_in": merged_grounded}
+        ).eq("id", node_id).execute()
+
+    async def upsert_kg_edges(self, kb_id: str, edges: list[dict]) -> int:
+        """Insert edges, skipping self-loops, dangling ids, and existing triples."""
+        if not edges:
+            return 0
+        sb = service_client()
+        rows: list[dict] = []
+        for e in edges:
+            sid = e.get("source_node_id")
+            tid = e.get("target_node_id")
+            rel = e.get("relation") or ""
+            if not sid or not tid or sid == tid:
+                continue
+            dupe = (
+                sb.table("kg_edges").select("id")
+                .eq("kb_id", kb_id).eq("source_node_id", sid)
+                .eq("target_node_id", tid).eq("relation", rel)
+                .limit(1).execute()
+            ).data
+            if dupe:
+                continue
+            rows.append({
+                "org_id": e.get("org_id"),
+                "kb_id": kb_id,
+                "source_node_id": sid,
+                "target_node_id": tid,
+                "relation": rel,
+                "properties": dict(e.get("properties") or {}),
+                "grounded_in": list(e.get("grounded_in") or []),
+            })
+        if not rows:
+            return 0
+        ins = sb.table("kg_edges").insert(rows).execute().data
+        return len(ins or [])
+
+    async def match_kg_nodes(
+        self,
+        kb_id: str,
+        query_embedding: list[float],
+        match_count: int,
+        min_similarity: float,
+    ) -> list[dict]:
+        """Reuses the `match_kg_nodes` pgvector RPC (migration 0003)."""
+        res = service_client().rpc(
+            "match_kg_nodes",
+            {
+                "query_embedding": query_embedding,
+                "match_kb_id": kb_id,
+                "match_count": match_count,
+                "min_similarity": min_similarity,
+            },
+        ).execute()
+        return res.data or []
+
+    def get_kg_subgraph(
+        self,
+        kb_id: str,
+        *,
+        seed_node_ids: list[str] | None = None,
+        node_cap: int = 200,
+        edge_cap: int = 600,
+    ) -> dict:
+        """Seeded → seeds + incident edges + one-hop neighbours; else whole graph."""
+        sb = service_client()
+        edge_cols = "id, source_node_id, target_node_id, relation, properties"
+        node_cols = "id, type, label, properties"
+        if seed_node_ids:
+            ids = list(dict.fromkeys(seed_node_ids))
+            edges = (
+                sb.table("kg_edges").select(edge_cols).eq("kb_id", kb_id)
+                .or_(
+                    f"source_node_id.in.({','.join(ids)}),"
+                    f"target_node_id.in.({','.join(ids)})"
+                )
+                .limit(edge_cap).execute()
+            ).data or []
+            node_id_set = set(ids)
+            for e in edges:
+                node_id_set.add(e["source_node_id"])
+                node_id_set.add(e["target_node_id"])
+            wanted = list(node_id_set)[:node_cap]
+            nodes = (
+                sb.table("kg_nodes").select(node_cols)
+                .in_("id", wanted).execute()
+            ).data if wanted else []
+        else:
+            nodes = (
+                sb.table("kg_nodes").select(node_cols).eq("kb_id", kb_id)
+                .limit(node_cap).execute()
+            ).data or []
+            edges = (
+                sb.table("kg_edges").select(edge_cols).eq("kb_id", kb_id)
+                .limit(edge_cap).execute()
+            ).data or []
+        return {"nodes": nodes or [], "edges": edges or []}
+
+    def list_kg_nodes(
+        self, kb_id: str, *, type: str | None = None, limit: int | None = None
+    ) -> list[dict]:
+        """Most-recent nodes in `kb_id` (optionally one type), newest first."""
+        n = min(limit or 50, 500)
+        q = (
+            service_client()
+            .table("kg_nodes")
+            .select("id, type, label, properties, created_at")
+            .eq("kb_id", kb_id)
+        )
+        if type:
+            q = q.eq("type", type)
+        return q.order("created_at", desc=True).limit(n).execute().data or []
+
+    def kg_stats(self, kb_id: str) -> dict:
+        """Node/edge totals + counts by node type and by relation."""
+        sb = service_client()
+        node_count = (
+            sb.table("kg_nodes").select("id", count="exact").eq("kb_id", kb_id).limit(1).execute()
+        ).count or 0
+        edge_count = (
+            sb.table("kg_edges").select("id", count="exact").eq("kb_id", kb_id).limit(1).execute()
+        ).count or 0
+        by_type: dict[str, int] = {}
+        for r in (
+            sb.table("kg_nodes").select("type").eq("kb_id", kb_id).limit(5000).execute()
+        ).data or []:
+            t = (r.get("type") if isinstance(r, dict) else None) or "unknown"
+            by_type[t] = by_type.get(t, 0) + 1
+        by_relation: dict[str, int] = {}
+        for r in (
+            sb.table("kg_edges").select("relation").eq("kb_id", kb_id).limit(5000).execute()
+        ).data or []:
+            rel = (r.get("relation") if isinstance(r, dict) else None) or "unknown"
+            by_relation[rel] = by_relation.get(rel, 0) + 1
+        return {
+            "node_count": node_count,
+            "edge_count": edge_count,
+            "by_type": by_type,
+            "by_relation": by_relation,
+        }
 
     # --- monitoring — best-effort --------------------------------------------
 
