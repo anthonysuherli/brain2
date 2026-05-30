@@ -23,6 +23,10 @@ brain2 fully standalone.
 - `brain2/interfaces/mcp/server.py` — MCP tools: `brain2_capture`, `brain2_resume`,
   `brain2_explore`, `brain2_activity`
 - `vscode-extension/` — VS Code extension (capture triggers + resume card webview)
+- `ios-app/` — native SwiftUI companion (first standalone UI). v1 = read spine:
+  Sign in, browse cross-repo activity, read resume cards. Consumes `/v1/projects`
+  + `/v1/resume?format=json` + `/v1/activity/stats`. XcodeGen project (`project.yml`,
+  no checked-in `.xcodeproj`). Design: `docs/plans/2026-05-30-ios-companion-design.md`
 - `skills/` — Claude Code plugin skills (built; see Plugin section below)
 - `.claude-plugin/` — plugin manifest + local dev marketplace; root `.mcp.json` wires the brain2 MCP server
 
@@ -150,7 +154,8 @@ npm run build
 |---|---|---|
 | `/health` | GET | Health check |
 | `/v1/capture` | POST | Save a workspace snapshot as a Finding |
-| `/v1/resume/{project}/{kb}` | GET | Tap KB → 30-sec resume card HTML + preamble |
+| `/v1/resume/{project}/{kb}` | GET | Tap KB → resume card. `?format=html` (default, webview) or `?format=json` (native, structured: hypothesis/snapshots/synopsis/activity/coverage/preamble) |
+| `/v1/projects` | GET | Discovery: caller's repos+branches with last-activity + snapshot-count chips (the iOS home screen; `Store.list_projects`) |
 | `/v1/explore/{project}/{kb}` | POST | Start gap-fill pipeline (returns exploration_id) |
 | `/v1/explore/{id}/status` | GET | Poll exploration progress + results |
 | `/v1/activity/graph` | GET | Query the cross-repo activity graph (semantic `q`, optional `repo`) |
