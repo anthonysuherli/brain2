@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>brain2 — End-to-End Executive Summary</title>
+<style>
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, system-ui, sans-serif;
+  --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+  --ink: #1D1D1F; --muted: #6E6E73; --faint: #8A8A8E;
+  --bg: #FAFAF8; --surface: #FFFFFF; --accent: #9C2C1F;
+  --hairline: rgba(0,0,0,0.10);
+  --t-eyebrow: 11px; --t-meta: 12px; --t-body: 15px;
+  --t-h3: 17px; --t-h2: 21px; --t-h1: 34px; --t-display: 42px;
+  --sp: 8px;
+}
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--font);
+  font-size:var(--t-body); line-height:1.6; -webkit-font-smoothing:antialiased;
+  font-variant-numeric: tabular-nums; }
+h1,h2,h3 { line-height:1.2; letter-spacing:-0.01em; font-weight:600; }
+p { max-width:66ch; }
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; }
+code { font-family:var(--mono); font-size:0.92em; background:rgba(0,0,0,0.05); padding:1px 5px; border-radius:4px; }
+.eyebrow { font-family:var(--mono); font-size:var(--t-eyebrow); letter-spacing:.12em;
+  text-transform:uppercase; color:var(--accent); }
+.meta { font-size:var(--t-meta); color:var(--muted); }
+.governing { font-size:var(--t-h3); color:var(--ink); max-width:66ch; }
+.scqa { max-width:66ch; }
+.scqa p { margin:0 0 calc(var(--sp)*1.5); }
+.scqa .scqa-a { font-size:var(--t-h3); }
+section { margin: calc(var(--sp)*5) 0; }
+section > h2 { font-size:var(--t-h2); margin:0 0 calc(var(--sp)*2);
+  padding-bottom:calc(var(--sp)*1.5); border-bottom:1px solid var(--hairline); }
+section p { margin:0 0 calc(var(--sp)*1.5); }
+ul,ol { max-width:66ch; padding-left:1.2em; }
+li { margin:calc(var(--sp)*0.5) 0; }
+.exhibit { margin: calc(var(--sp)*3) 0; }
+.exhibit figcaption { font-size:var(--t-meta); color:var(--muted); margin-top:var(--sp); max-width:66ch; }
+.exhibit .exhibit-title { color:var(--ink); font-weight:600; }
+.citations { font-size:var(--t-meta); color:var(--faint); margin-top:var(--sp); }
+.citations a { color:var(--faint); }
+.exhibit-table { border-collapse:collapse; width:100%; font-size:var(--t-meta);
+  font-variant-numeric:tabular-nums; }
+.exhibit-table th, .exhibit-table td { padding:6px 14px 6px 0; text-align:left; vertical-align:top; }
+.exhibit-table thead th { color:var(--muted); font-weight:600; font-size:var(--t-eyebrow);
+  letter-spacing:.04em; text-transform:uppercase; border-bottom:1.5px solid var(--ink); }
+.exhibit-table tbody td { border-bottom:1px solid var(--hairline); }
+.exhibit-table tbody tr:last-child td { border-bottom:1.5px solid var(--ink); }
+.exhibit-table .num { text-align:right; white-space:nowrap; }
+.exhibit-table tr.hl td { background:color-mix(in srgb, var(--accent) 9%, transparent);
+  color:var(--ink); font-weight:600; }
+.cover { padding: calc(var(--sp)*12) calc(var(--sp)*8) calc(var(--sp)*6);
+  border-bottom: 3px solid var(--accent); }
+.cover h1 { font-size:var(--t-display); margin: calc(var(--sp)*2) 0 var(--sp); max-width:18ch; }
+.hero { padding: calc(var(--sp)*6) calc(var(--sp)*8); background:var(--surface);
+  border-bottom:1px solid var(--hairline); }
+.hero .hero-label { font-size:var(--t-eyebrow); letter-spacing:.16em; text-transform:uppercase;
+  color:var(--muted); margin-bottom:calc(var(--sp)*2); }
+.hero .governing { font-size:var(--t-h2); max-width:60ch; margin:0 0 calc(var(--sp)*3); }
+main { padding: calc(var(--sp)*4) calc(var(--sp)*8) calc(var(--sp)*10); max-width:980px; }
+section > h2 { border-bottom:none; padding-bottom:0; }
+section { padding-left: calc(var(--sp)*2); border-left:2px solid var(--accent); }
+</style>
+</head><body>
+<div class="cover">
+  <div class="eyebrow">Consulting Brief · brain2 / dev</div>
+  <h1>brain2 — End-to-End Executive Summary</h1>
+  <div class="meta">Generated 2026-05-30 09:09 UTC · 32 findings</div>
+</div>
+<div class="hero">
+  <div class="hero-label">Executive Summary</div>
+  <p class="governing">brain2 is primed for its 6-week launch runbook, anchored by a shipped v0 two-tier architecture, a native iOS companion app, and a developer-centric go-to-market strategy monetizing via an $8/month Pro tier.</p>
+  <div class="scqa">
+    <p>Developers increasingly rely on AI-assisted workflows, requiring seamless context capture and resumption across branches and sessions. Traditional context management is fragmented, and developers are highly skeptical of marketing-heavy, high-friction tools that lack immediate, self-serve utility.</p>
+    <p class="scqa-q">How is brain2 architected and positioned to successfully capture this market and execute its upcoming launch?</p>
+    <p class="scqa-a"><strong>brain2 has shipped its v0 core — featuring local/cloud storage and an iOS companion — and is executing a 6-week launch plan targeting a freemium 'git stash for your head' wedge, backed by a Lemon Squeezy-powered $8/mo Pro tier.</strong></p>
+  </div>
+</div>
+<main>
+  <section id="sec-1">
+    <h2>brain2 v0 establishes a robust two-tier storage architecture and a seamless capture/resume loop.</h2>
+    <p>The core engine for brain2 v0 has officially shipped, built via subagent-driven development and validated by 57 tests. The architecture relies on a flexible two-tier storage model behind a unified Store protocol: a free local tier utilizing SQLite and sqlite-vec, and a paid cloud tier powered by Supabase.</p>
+    <p>To streamline the user experience and reduce friction, the product surface area has been strategically tightened. The VS Code extension was removed in favor of a 'one-command capture' narrative. In its place, integration focuses on a Claude Code statusline that reads directly from the brain2 SQLite knowledge base, displaying the latest captured hypothesis for each active branch or worktree directly under the prompt box.</p>
+  </section>
+  <section id="sec-2">
+    <h2>The iOS companion app provides a native read spine, shifting immediate engineering focus to cloud deployment and authentication.</h2>
+    <p>Mobile accessibility is a critical extension of the brain2 ecosystem. The iOS companion v1 'read spine' is complete and committed. The native SwiftUI application successfully decodes real server JSON into Swift models, supported by a backend test suite that is currently passing 87 out of 88 tests.</p>
+    <p>With the client-side foundation laid, the critical path for mobile now shifts to infrastructure and security. The immediate next steps require hosting the FastAPI cloud tier (via Fly or Render), implementing Supabase Apple OAuth for seamless token exchange, and verifying Row Level Security (RLS) on the activity knowledge graph tables before advancing to v2 push and quick-capture features.</p>
+  </section>
+  <section id="sec-3">
+    <h2>The go-to-market strategy leverages a freemium 'git stash for your head' wedge tailored to skeptical developer buying behaviors.</h2>
+    <p>Developers are inherently skeptical of hype, marketing fluff, and persuasion tactics. They demand instant access, self-service, and frictionless onboarding. To align with this buying behavior, brain2 is positioned as a practical, utility-first tool — a 'git stash for your head'.</p>
+    <p>The marketing footprint has been completely restructured to reflect this ethos. A sprawling 8-section landing page was condensed into a concise 4-page site (Index, How-it-works, Access, Install) that maintains a strict 'free-first' cloud stance. Messaging prioritizes education and enablement over sales, ensuring that developers can evaluate the tool based on hands-on evidence and actionable utility rather than business jargon.</p>
+  </section>
+  <section id="sec-4">
+    <h2>A 6-week launch runbook targets a Show HN debut, monetizing via an $8/month Pro tier managed by Lemon Squeezy.</h2>
+    <p>The comprehensive launch plan is structured around a 6-week runbook culminating in a 'Show HN' debut. The commercial model relies on a freemium wedge that upsells to a Pro tier priced at $8/month. To manage this, brain2 will utilize Lemon Squeezy as the Merchant of Record (MoR). While Lemon Squeezy carries a higher monthly cost compared to Stripe at early revenue milestones, the premium is a strategic investment to entirely offload global tax compliance overhead for a solo developer operation.</p>
+    <p>Launch readiness is gated by strict go/no-go metrics: the product must achieve an activation rate of at least 25% and maintain a crash-free session rate of 99.5%. Early milestones will target standard indie launch benchmarks, aiming to capture initial momentum and convert early signups into active, retained users.</p>
+  <figure class="exhibit">
+    <table class="exhibit-table"><thead><tr><th>Provider</th><th>Estimated Monthly Cost</th><th>Strategic Benefit</th></tr></thead><tbody><tr class="hl"><td>Lemon Squeezy</td><td>~$550/month</td><td>Full MoR tax compliance offloading</td></tr><tr><td>Stripe</td><td>~$320/month</td><td>Lower base fee (before Stripe Tax)</td></tr></tbody></table>
+    <figcaption><span class="exhibit-title">Payment Processor Comparison at $10,000 MRR</span> — Lemon Squeezy is selected despite higher fees to offload tax compliance — a critical tradeoff for solo developer velocity.</figcaption>
+    <div class="citations">Sources: #b04f6d13</div>
+  </figure>
+  <figure class="exhibit">
+    <svg viewBox="0 0 640 144" width="100%" role="img" font-family="inherit" aria-label="Month-One SaaS Launch Benchmarks"><text x="158" y="21.0" text-anchor="end" dominant-baseline="middle" font-size="13" fill="#6E6E73">Indie Launch Signups (Low)</text><rect x="168" y="8" width="49.1" height="26" rx="2" fill="#B0B0B5"/><text x="225.1" y="21.0" dominant-baseline="middle" font-size="13" font-weight="600" fill="#1D1D1F" style="font-variant-numeric:tabular-nums">100</text><text x="158" y="57.0" text-anchor="end" dominant-baseline="middle" font-size="13" fill="#6E6E73">Indie Launch Signups (High)</text><rect x="168" y="44" width="245.6" height="26" rx="2" fill="#B0B0B5"/><text x="421.6" y="57.0" dominant-baseline="middle" font-size="13" font-weight="600" fill="#1D1D1F" style="font-variant-numeric:tabular-nums">500</text><text x="158" y="93.0" text-anchor="end" dominant-baseline="middle" font-size="13" fill="#6E6E73">Median Users (Month 1)</text><rect x="168" y="80" width="416.0" height="26" rx="2" fill="#9C2C1F"/><text x="592.0" y="93.0" dominant-baseline="middle" font-size="13" font-weight="600" fill="#1D1D1F" style="font-variant-numeric:tabular-nums">847</text><text x="168" y="136" font-size="11" fill="#6E6E73">users</text></svg>
+    <figcaption><span class="exhibit-title">Month-One SaaS Launch Benchmarks</span> — brain2's launch targets align with standard indie launch volumes; the median SaaS product reaches 847 users by month one, well above a typical Show HN spike.</figcaption>
+    <div class="citations">Sources: #43300575</div>
+  </figure>
+  </section>
+</main>
+</body></html>
