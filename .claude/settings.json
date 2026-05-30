@@ -1,0 +1,7 @@
+{
+  "enabledPlugins": {},
+  "statusLine": {
+    "type": "command",
+    "command": "python3 /Users/suherli/Repositories/brain2/scripts/brain2-statusline.py"
+  }
+}

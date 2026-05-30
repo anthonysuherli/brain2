@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>brain2 — Launch Plan Executive Briefing</title>
+<style>
+  :root{
+    --ink:#0f172a; --slate:#334155; --muted:#64748b; --faint:#94a3b8;
+    --bg:#f6f7f9; --surface:#ffffff; --line:#e2e8f0;
+    --indigo:#4f46e5; --indigo-soft:#eef2ff; --teal:#0d9488; --teal-soft:#ecfdf5;
+    --green:#16a34a; --amber:#d97706; --red:#dc2626;
+    --green-soft:#dcfce7; --amber-soft:#fef3c7; --red-soft:#fee2e2;
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,system-ui,sans-serif;
+    --shadow:0 1px 2px rgba(15,23,42,.04),0 4px 16px rgba(15,23,42,.06);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:15px;-webkit-font-smoothing:antialiased}
+  h1,h2,h3,h4{line-height:1.2;letter-spacing:-.01em;margin:0}
+  p{margin:0 0 12px;color:var(--slate);max-width:72ch}
+  a{color:var(--indigo);text-decoration:none}
+  code{font-family:var(--mono);font-size:.88em;background:#f1f5f9;padding:1px 5px;border-radius:4px;color:var(--ink)}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  /* ── nav ── */
+  nav{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding-top:10px;padding-bottom:10px}
+  nav .brand{font-weight:700;margin-right:auto;letter-spacing:-.02em}
+  nav .brand span{color:var(--indigo)}
+  nav a{font-size:12.5px;color:var(--muted);padding:4px 9px;border-radius:6px}
+  nav a:hover{background:var(--indigo-soft);color:var(--indigo)}
+
+  /* ── hero ── */
+  header.hero{background:linear-gradient(160deg,#0f172a 0%,#1e1b4b 60%,#312e81 100%);color:#fff;padding:54px 0 48px}
+  header.hero .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#a5b4fc}
+  header.hero h1{font-size:40px;margin:14px 0 10px;color:#fff;max-width:20ch}
+  header.hero .sub{font-size:18px;color:#cbd5e1;max-width:60ch}
+  header.hero .meta{margin-top:18px;font-size:13px;color:#94a3b8;font-family:var(--mono)}
+  .strat{margin-top:26px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-left:3px solid #818cf8;border-radius:10px;padding:16px 20px;max-width:74ch}
+  .strat b{color:#fff}
+  .strat span{color:#c7d2fe;font-weight:600}
+
+  /* ── stat cards ── */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:-30px 0 0}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+  .stat .n{font-size:26px;font-weight:750;letter-spacing:-.02em}
+  .stat .n.i{color:var(--indigo)} .stat .n.t{color:var(--teal)} .stat .n.a{color:var(--amber)} .stat .n.r{color:var(--red)}
+  .stat .l{font-size:12.5px;color:var(--muted);margin-top:3px}
+
+  section{padding:42px 0 8px}
+  .shead{display:flex;align-items:baseline;gap:12px;margin-bottom:6px}
+  .shead .k{font-family:var(--mono);font-size:12px;color:var(--indigo);font-weight:600}
+  .shead h2{font-size:23px}
+  .lead{color:var(--muted);max-width:74ch;margin-bottom:22px}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:22px 24px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:780px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  /* ── workstream chips ── */
+  .ws-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+  .ws{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:15px 16px;box-shadow:var(--shadow);border-top:3px solid var(--indigo)}
+  .ws .tag{font-family:var(--mono);font-size:11px;color:var(--indigo);font-weight:600}
+  .ws h4{font-size:14.5px;margin:5px 0 6px}
+  .ws p{font-size:13px;margin:0;color:var(--slate)}
+  .ws.t{border-top-color:var(--teal)} .ws.a{border-top-color:var(--amber)} .ws.r{border-top-color:var(--red)}
+
+  /* ── timeline / gantt ── */
+  .gantt{display:grid;grid-template-columns:84px 1fr;gap:0 14px;align-items:center;font-size:13.5px}
+  .gantt .wk{font-family:var(--mono);font-weight:600;color:var(--ink);padding:7px 0}
+  .gantt .track{position:relative;height:34px;display:flex;align-items:center}
+  .gantt .seg{height:30px;border-radius:7px;display:flex;align-items:center;padding:0 12px;color:#fff;font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden}
+  .g0{background:#0ea5e9}.g1{background:#6366f1}.g2{background:#8b5cf6}.g3{background:#0d9488}.g4{background:#d97706}.g5{background:#dc2626}.g6{background:#16a34a}
+  .gantt .date{font-family:var(--mono);font-size:11.5px;color:var(--faint);padding:7px 0}
+  .gantt .hd{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding-bottom:4px}
+
+  /* ── bar charts ── */
+  .bars{display:flex;flex-direction:column;gap:9px;margin-top:4px}
+  .brow{display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:center;font-size:13px}
+  .brow .bl{color:var(--slate);text-align:right;font-weight:500}
+  .btrack{background:#f1f5f9;border-radius:6px;height:26px;position:relative;overflow:hidden}
+  .bfill{height:100%;border-radius:6px;display:flex;align-items:center;padding:0 9px;color:#fff;font-size:12px;font-weight:600;background:var(--indigo)}
+  .bfill.t{background:var(--teal)} .bfill.hi{background:linear-gradient(90deg,#4f46e5,#7c3aed)} .bfill.mut{background:#cbd5e1;color:var(--slate)}
+  .bfill.dur{background:repeating-linear-gradient(45deg,#a5b4fc,#a5b4fc 7px,#c7d2fe 7px,#c7d2fe 14px);color:#312e81}
+
+  /* ── tables ── */
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  thead th{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-bottom:1.5px solid var(--slate)}
+  td.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+  tr.hl td{background:var(--indigo-soft)}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+  .pill.go{background:var(--green-soft);color:#166534}.pill.no{background:var(--red-soft);color:#991b1b}.pill.str{background:var(--indigo-soft);color:#3730a3}
+
+  /* ── funnel ── */
+  .funnel{display:flex;flex-direction:column;align-items:center;gap:5px;margin-top:6px}
+  .fstep{height:42px;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;color:#fff;font-weight:600;font-size:13px}
+  .fstep .pct{font-family:var(--mono);font-size:13px;opacity:.95}
+
+  /* ── callouts ── */
+  .note{border-radius:12px;padding:16px 18px;font-size:13.5px}
+  .note.risk{background:var(--red-soft);border:1px solid #fca5a5}
+  .note.risk b{color:#991b1b}
+  .note.win{background:var(--teal-soft);border:1px solid #5eead4}
+  .note.key{background:var(--indigo-soft);border:1px solid #c7d2fe}
+  .note p{color:var(--slate)} .note p:last-child{margin-bottom:0}
+
+  ul.tight{margin:0;padding-left:18px;color:var(--slate);font-size:13.5px}
+  ul.tight li{margin:5px 0}
+  .check{list-style:none;padding:0;margin:0}
+  .check li{position:relative;padding-left:26px;margin:8px 0;font-size:13.5px;color:var(--slate)}
+  .check li:before{content:"";position:absolute;left:0;top:3px;width:16px;height:16px;border-radius:5px;background:var(--indigo-soft);border:1.5px solid var(--indigo)}
+  .check li b{color:var(--ink)}
+
+  .tier{border:1px solid var(--line);border-radius:14px;padding:20px;background:var(--surface);box-shadow:var(--shadow);position:relative}
+  .tier.feat{border-color:var(--indigo);box-shadow:0 0 0 2px var(--indigo-soft),var(--shadow)}
+  .tier .badge{position:absolute;top:-10px;right:16px;background:var(--indigo);color:#fff;font-size:10.5px;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:20px;text-transform:uppercase}
+  .tier .tn{font-size:14px;font-weight:700;color:var(--muted)}
+  .tier .tp{font-size:30px;font-weight:780;letter-spacing:-.02em;margin:4px 0 2px}
+  .tier .tp small{font-size:14px;font-weight:600;color:var(--muted)}
+  .tier .ts{font-size:12px;color:var(--faint);margin-bottom:12px}
+  .tier ul{margin:0;padding-left:16px;font-size:12.5px;color:var(--slate)}
+  .tier ul li{margin:5px 0}
+
+  footer{margin-top:50px;padding:28px 0 40px;border-top:1px solid var(--line);color:var(--faint);font-size:12.5px}
+  .src{font-size:11.5px;color:var(--faint);margin-top:8px;font-family:var(--mono)}
+  svg{max-width:100%;height:auto}
+  .cap{font-size:12px;color:var(--muted);margin-top:10px}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <div class="brand">brain<span>2</span> · launch plan</div>
+  <a href="#summary">Summary</a>
+  <a href="#timeline">Timeline</a>
+  <a href="#deps">Dependencies</a>
+  <a href="#position">Positioning</a>
+  <a href="#channels">Channels</a>
+  <a href="#pricing">Pricing</a>
+  <a href="#payments">Payments</a>
+  <a href="#metrics">Metrics</a>
+  <a href="#legal">Legal</a>
+  <a href="#crit">Critical path</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <div class="eyebrow">Executive Briefing · 2026-05-29</div>
+  <h1>Launching brain2: a 6-week, freemium dev-tool playbook</h1>
+  <p class="sub">Eight workstreams — positioning, distribution, pricing, payments, legal, metrics, onboarding, and the integrated runbook — condensed into one decision surface.</p>
+  <div class="strat"><b>The bet:</b> win developers with a <span>frictionless, private-by-default local tier</span>, lead with the <span>"git stash for your head"</span> wedge through peer-led channels, monetize a <span>$8/mo cloud sync tier</span> via a Merchant-of-Record, and gate launch on <span>activation ≥25% + crash-free ≥99.5%</span> — not on launch-day revenue.</div>
+  <div class="meta">Synthesized from docs/launch/ws1–ws8 · grounded in the brain2 dev KB (25 findings, 48-node graph)</div>
+</div></header>
+
+<div class="wrap">
+  <div class="stats">
+    <div class="stat"><div class="n i">~23 min</div><div class="l">refocus tax per interruption brain2 kills</div></div>
+    <div class="stat"><div class="n t">$8/mo</div><div class="l">Pro tier ($6 annual) — sync + cross-repo search</div></div>
+    <div class="stat"><div class="n a">2–3%</div><div class="l">year-1 free→paid conversion target</div></div>
+    <div class="stat"><div class="n i">100–500</div><div class="l">expected launch-day installs (HN spike)</div></div>
+    <div class="stat"><div class="n r">WS-5</div><div class="l">highest-risk workstream: stores code</div></div>
+  </div>
+</div>
+
+<!-- ── EXEC SUMMARY ── -->
+<section id="summary"><div class="wrap">
+  <div class="shead"><span class="k">00</span><h2>Executive summary</h2></div>
+  <p class="lead">brain2 captures workspace state the moment a developer is interrupted — branch, open files, diff, and a one-line "why" — and replays it as a 30-second resume card. It ships freemium: a fully-local free tier (SQLite, loopback, no auth) and a paid cloud tier (Supabase) for sync &amp; cross-repo search.</p>
+  <div class="grid3">
+    <div class="card">
+      <h4 style="color:var(--indigo);font-size:13px;font-family:var(--mono)">SITUATION</h4>
+      <p style="margin-top:8px">v0 has shipped: two-tier storage behind a unified <code>Store</code> protocol, distributed as a Claude Code plugin + VS Code extension. The product works; the question is how to take it to market as a solo founder.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--amber);font-size:13px;font-family:var(--mono)">COMPLICATION</h4>
+      <p style="margin-top:8px">Developers reject hype and buy on hands-on evidence. A paid cloud tier that stores <i>code-adjacent data</i> adds real compliance, trust, and conversion hurdles — amplified by a one-person team.</p>
+    </div>
+    <div class="card">
+      <h4 style="color:var(--teal);font-size:13px;font-family:var(--mono)">RESOLUTION</h4>
+      <p style="margin-top:8px">Lead with a verifiable "your code never leaves your machine" free tier, distribute through peer-led channels, offload tax to a Merchant-of-Record, and instrument a clear activation funnel before spending a dollar on acquisition.</p>
+    </div>
+  </div>
+
+  <h3 style="margin:30px 0 14px;font-size:16px">The eight workstreams at a glance</h3>
+  <div class="ws-grid">
+    <div class="ws"><div class="tag">WS-1 · POSITIONING</div><h4>"Git stash for your head"</h4><p>Narrow wedge on the interrupt→resume moment. Launch to solo AI-devs + agentic power users; defer the multi-repo senior.</p></div>
+    <div class="ws"><div class="tag">WS-2 · DISTRIBUTION</div><h4>HN spike, marketplaces compound</h4><p>Show HN is the day-1 spike; Claude + VS Code marketplaces and a "Build vs Buy" guide are the durable engines.</p></div>
+    <div class="ws t"><div class="tag">WS-3 · PRICING</div><h4>Freemium, storage = the gate</h4><p>Free local forever · Pro $8/mo (sync + cross-repo) · Team $12/seat. Never gate the 30-sec aha.</p></div>
+    <div class="ws t"><div class="tag">WS-4 · PAYMENTS</div><h4>Merchant-of-Record, not raw Stripe</h4><p>Lemon Squeezy offloads global VAT/sales-tax liability; dunning recovers 30–60% of failed payments.</p></div>
+    <div class="ws r"><div class="tag">WS-5 · LEGAL &amp; TRUST</div><h4>Highest risk — it stores code</h4><p>Single-member LLC + ToS/PP/DPA before charging. SOC 2 only on first enterprise deal. No-train/no-retain is the key disclosure.</p></div>
+    <div class="ws a"><div class="tag">WS-6 · METRICS</div><h4>North Star: weekly restoring resumes</h4><p>Activation = first capture→restoring resume. Content-free PostHog events. Hard go/no-go gates.</p></div>
+    <div class="ws a"><div class="tag">WS-8 · ONBOARDING</div><h4>Aha in session one</h4><p>Install → auto-capture on interrupt → first populated resume card. Shareable card is the growth loop.</p></div>
+    <div class="ws"><div class="tag">WS-7 · RUNBOOK</div><h4>The dated 6-week capstone</h4><p>Sequences all seven into W0→W5+ with a launch-day hour-by-hour and a go/no-go gate.</p></div>
+  </div>
+</div></section>
+
+<!-- ── TIMELINE ── -->
+<section id="timeline"><div class="wrap">
+  <div class="shead"><span class="k">01</span><h2>The 6-week runbook</h2></div>
+  <p class="lead">Anchored at W0 = week of 2026-05-29. Each phase is one calendar week; the free-tier spike can decouple from the paid surface if legal/payments aren't ready.</p>
+  <div class="card">
+    <div class="gantt">
+      <div class="hd">Phase</div><div class="hd">Theme &amp; dates</div>
+      <div class="wk">W0</div><div class="track"><div class="seg g0" style="width:100%">Prove the live loop on both tiers + turn on the meters</div></div>
+      <div class="date">05-25 → 05-29</div><div></div>
+      <div class="wk">W1</div><div class="track"><div class="seg g1" style="width:90%">Private beta opens — 20–50 design partners</div></div>
+      <div class="date">06-01 → 06-05</div><div></div>
+      <div class="wk">W2</div><div class="track"><div class="seg g2" style="width:82%">Beta feedback → patterns → fix the session-1 aha</div></div>
+      <div class="date">06-08 → 06-12</div><div></div>
+      <div class="wk">W3</div><div class="track"><div class="seg g3" style="width:88%">Public surface: landing + waitlist + signature guide</div></div>
+      <div class="date">06-15 → 06-19</div><div></div>
+      <div class="wk">W4</div><div class="track"><div class="seg g4" style="width:96%">Assets + pricing/payments live + legal kit in place</div></div>
+      <div class="date">06-22 → 06-26</div><div></div>
+      <div class="wk">W5</div><div class="track"><div class="seg g5" style="width:70%">LAUNCH — Show HN Tue 06-30, 8am ET</div></div>
+      <div class="date">06-29 → 07-02</div><div></div>
+      <div class="wk">W6+</div><div class="track"><div class="seg g6" style="width:78%">Post-launch retention loop → scale-spend gate</div></div>
+      <div class="date">07-06 → ongoing</div><div></div>
+    </div>
+    <p class="cap">Launch day choreography: post Show HN 8:00am ET → camp the thread 6h → cross-post Reddit/daily.dev/X by 10am → PostHog monitoring checkpoints at 11:00, 14:00, 20:00 → Product Hunt staggered 1–2 weeks later at 12:01am PT.</p>
+  </div>
+</div></section>
+
+<!-- ── DEPENDENCIES ── -->
+<section id="deps"><div class="wrap">
+  <div class="shead"><span class="k">02</span><h2>Dependency map</h2></div>
+  <p class="lead">W0 (a working, instrumented loop) blocks everything measurable. Positioning + onboarding + metrics feed distribution; the buyable surface (pricing + payments + legal) must be live only <i>if you sell at launch</i>.</p>
+  <div class="card">
+  <svg viewBox="0 0 760 580" role="img" aria-label="Workstream dependency graph">
+    <defs>
+      <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L7,3 L0,6 Z" fill="#94a3b8"/>
+      </marker>
+    </defs>
+    <style>
+      .bx{rx:10;stroke-width:1.5}
+      .bt{font:600 13px var(--sans,sans-serif);fill:#0f172a}
+      .bs{font:11px var(--sans,sans-serif);fill:#64748b}
+      .ed{stroke:#94a3b8;stroke-width:1.6;fill:none;marker-end:url(#ar)}
+      .lb{font:600 10px var(--mono,monospace);fill:#fff;letter-spacing:.04em}
+    </style>
+    <!-- edges first -->
+    <path class="ed" d="M380,58 C380,80 130,82 130,108"/>
+    <path class="ed" d="M380,58 L380,108"/>
+    <path class="ed" d="M380,58 C380,80 630,82 630,108"/>
+    <path class="ed" d="M130,168 C130,196 380,194 380,220"/>
+    <path class="ed" d="M380,168 L380,220"/>
+    <path class="ed" d="M380,272 C380,300 130,300 130,330"/>
+    <path class="ed" d="M380,272 L380,330"/>
+    <path class="ed" d="M380,272 C380,300 630,300 630,330"/>
+    <path class="ed" d="M130,392 C130,418 380,418 380,446"/>
+    <path class="ed" d="M380,392 L380,446"/>
+    <path class="ed" d="M630,392 C630,418 380,418 380,446"/>
+    <!-- WS-6 routes down the right edge to launch -->
+    <path class="ed" d="M700,140 C742,200 742,400 470,462"/>
+    <path class="ed" d="M380,494 L380,520"/>
+
+    <!-- W0 -->
+    <rect class="bx" x="180" y="12" width="400" height="46" fill="#e0f2fe" stroke="#38bdf8"/>
+    <rect x="180" y="12" width="92" height="46" rx="10" fill="#0ea5e9"/>
+    <text class="lb" x="226" y="39" text-anchor="middle">W0</text>
+    <text class="bt" x="290" y="32">Live capture→resume loop · both tiers</text>
+    <text class="bs" x="290" y="48">+ PostHog meters + WS-8 friction fixes — blocks all measurement</text>
+
+    <!-- row 2 -->
+    <rect class="bx" x="40" y="108" width="180" height="60" fill="#eef2ff" stroke="#818cf8"/>
+    <text class="lb" x="56" y="128" fill="#4f46e5" style="font-size:10px">WS-1</text>
+    <text class="bt" x="56" y="146">Positioning</text>
+    <text class="bs" x="56" y="161">wedge · ICP · messaging</text>
+
+    <rect class="bx" x="290" y="108" width="180" height="60" fill="#fef3c7" stroke="#fbbf24"/>
+    <text class="lb" x="306" y="128" fill="#b45309" style="font-size:10px">WS-8</text>
+    <text class="bt" x="306" y="146">Activation loop</text>
+    <text class="bs" x="306" y="161">aha · friction · share loop</text>
+
+    <rect class="bx" x="540" y="108" width="180" height="60" fill="#fef3c7" stroke="#fbbf24"/>
+    <text class="lb" x="556" y="128" fill="#b45309" style="font-size:10px">WS-6</text>
+    <text class="bt" x="556" y="146">Instrumentation</text>
+    <text class="bs" x="556" y="161">NSM · taxonomy · gates</text>
+
+    <!-- WS-2 -->
+    <rect class="bx" x="290" y="220" width="180" height="52" fill="#eef2ff" stroke="#818cf8"/>
+    <text class="lb" x="306" y="240" fill="#4f46e5" style="font-size:10px">WS-2</text>
+    <text class="bt" x="306" y="258">Distribution</text>
+
+    <!-- row 4 -->
+    <rect class="bx" x="40" y="330" width="180" height="62" fill="#ecfdf5" stroke="#5eead4"/>
+    <text class="lb" x="56" y="350" fill="#0d9488" style="font-size:10px">WS-3</text>
+    <text class="bt" x="56" y="368">Pricing</text>
+    <text class="bs" x="56" y="383">tiers · upgrade triggers</text>
+
+    <rect class="bx" x="290" y="330" width="180" height="62" fill="#ecfdf5" stroke="#5eead4"/>
+    <text class="lb" x="306" y="350" fill="#0d9488" style="font-size:10px">WS-4</text>
+    <text class="bt" x="306" y="368">Payments</text>
+    <text class="bs" x="306" y="383">MoR · webhooks · dunning</text>
+
+    <rect class="bx" x="540" y="330" width="180" height="62" fill="#fee2e2" stroke="#fca5a5"/>
+    <text class="lb" x="556" y="350" fill="#dc2626" style="font-size:10px">WS-5</text>
+    <text class="bt" x="556" y="368">Legal &amp; trust</text>
+    <text class="bs" x="556" y="383">LLC · DPA · /security</text>
+
+    <!-- launch -->
+    <rect class="bx" x="240" y="446" width="280" height="48" fill="#dcfce7" stroke="#4ade80"/>
+    <text class="bt" x="380" y="468" text-anchor="middle" style="fill:#166534">W5 · LAUNCH DAY</text>
+    <text class="bs" x="380" y="484" text-anchor="middle">WS-2 choreography + WS-6 monitoring</text>
+
+    <!-- retention -->
+    <rect class="bx" x="240" y="520" width="280" height="44" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text class="bt" x="380" y="540" text-anchor="middle">W6+ · Retention loop</text>
+    <text class="bs" x="380" y="556" text-anchor="middle">→ scale-spend gate</text>
+  </svg>
+  <p class="cap"><b>Key blocking edges:</b> WS-8 + WS-1 block WS-2 (no Show HN until the loop works in-session and the wedge is validated) · WS-3 → WS-4 (payments implement the prices) · WS-4 + WS-5 <i>jointly</i> gate "selling at launch" · WS-6 gates launch day via go/no-go.</p>
+  </div>
+</div></section>
+
+<!-- ── POSITIONING ── -->
+<section id="position"><div class="wrap">
+  <div class="shead"><span class="k">03</span><h2>Positioning &amp; ICP</h2></div>
+  <p class="lead">Narrow-and-frequent wedge, ranked personas, and an honest competitor read where the #1 rival is inertia, not a funded startup.</p>
+  <div class="grid2">
+    <div class="card">
+      <h4 style="font-size:14px;margin-bottom:10px">Wedge &amp; category line</h4>
+      <div class="note key"><p style="font-size:15px"><b style="color:var(--ink)">"Git stash for your head"</b></p><p>Anchors to a tool every dev already improvises with — instantly legible, names the competitor while reframing it. Secondary line for agentic channels: <i>"the session-resume layer for AI coding."</i></p></div>
+      <h4 style="font-size:14px;margin:18px 0 10px">Persona priority</h4>
+      <table>
+        <tr><td><span class="pill str">PRIMARY</span></td><td><b>Solo AI-assisted indie dev</b><br><span style="color:var(--muted);font-size:12px">Converts on free local; lives on HN, daily.dev, Cursor/Claude Discords.</span></td></tr>
+        <tr><td><span class="pill go">SECONDARY</span></td><td><b>Agentic-coding power user</b><br><span style="color:var(--muted);font-size:12px">brain2 <i>is</i> an MCP server — fixes "my agent forgets between sessions."</span></td></tr>
+        <tr><td><span class="pill no">DEFER</span></td><td><b>Multi-repo senior</b><br><span style="color:var(--muted);font-size:12px">Needs sync/cross-repo/team — designed, not built. "Coming soon" only.</span></td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h4 style="font-size:14px;margin-bottom:10px">Competitor / alternative teardown</h4>
+      <table>
+        <thead><tr><th>Alternative</th><th>brain2's edge</th></tr></thead>
+        <tbody>
+          <tr><td><b>Do nothing / memory</b><br><span style="color:var(--muted);font-size:11.5px">the #1 competitor</span></td><td>Captures the <i>intent</i> ("why") memory loses first and a diff can't recover.</td></tr>
+          <tr><td><b>git stash + WIP commit</b></td><td>Saves <i>context</i>, not just code — open files, cursor, rationale, searchable.</td></tr>
+          <tr><td><b>Scratchpad / notes file</b></td><td>Auto-captures on the interrupt trigger — zero discipline required.</td></tr>
+          <tr><td><b>Agent-memory tools</b><br><span style="color:var(--muted);font-size:11.5px">claude-mem, CLAUDE.md</span></td><td>Human-first card <i>plus</i> an MCP surface — serves you, not just the agent.</td></tr>
+        </tbody>
+      </table>
+      <div class="note win" style="margin-top:14px"><p><b>Validate before launch:</b> show "git stash for your head" cold to 10 lookalikes — need ≥5/10 to paraphrase the product unprompted, or fall back to "save state for coding."</p></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ── CHANNELS ── -->
+<section id="channels"><div class="wrap">
+  <div class="shead"><span class="k">04</span><h2>Distribution channels</h2></div>
+  <p class="lead">Ranked by expected installs from a single well-run push (bar width ∝ upper-bound signups). Striped bars are durable/compounding engines, not one-shot spikes.</p>
+  <div class="card">
+    <div class="bars">
+      <div class="brow"><div class="bl">Show HN / HN</div><div class="btrack"><div class="bfill hi" style="width:100%">100–500 · the spike</div></div></div>
+      <div class="brow"><div class="bl">Product Hunt</div><div class="btrack"><div class="bfill" style="width:40%">50–200</div></div></div>
+      <div class="brow"><div class="bl">Claude plugin mktpl.</div><div class="btrack"><div class="bfill dur" style="width:40%">50–200 ↻</div></div></div>
+      <div class="brow"><div class="bl">VS Code Marketplace</div><div class="btrack"><div class="bfill dur" style="width:30%">30–150/wk ↻</div></div></div>
+      <div class="brow"><div class="bl">Reddit (targeted)</div><div class="btrack"><div class="bfill" style="width:20%">20–100</div></div></div>
+      <div class="brow"><div class="bl">daily.dev</div><div class="btrack"><div class="bfill dur" style="width:16%">20–80 ↻</div></div></div>
+      <div class="brow"><div class="bl">X / Bluesky</div><div class="btrack"><div class="bfill" style="width:12%">10–60</div></div></div>
+      <div class="brow"><div class="bl">Dev Discords</div><div class="btrack"><div class="bfill" style="width:8%">5–40</div></div></div>
+      <div class="brow"><div class="bl">Signature "Build vs Buy"</div><div class="btrack"><div class="bfill dur" style="width:55%">durable SEO · high 6–12mo ↻</div></div></div>
+      <div class="brow"><div class="bl">Demo GIF / YouTube</div><div class="btrack"><div class="bfill mut" style="width:50%">asset multiplier — powers all channels</div></div></div>
+    </div>
+    <p class="cap"><b>Post-mortem reality:</b> PostHog → 800+ stars / 200+ signups in 5 days (tags drove discovery) · an HN front-pager → ~468 launch-day users but <b>zero</b> day-1 conversions · Sixth → 30,000+ VS Code installs via keyword-rich naming. <b>Lesson:</b> optimize the HN spike for installs + stars + email, not revenue; marketplaces compound.</p>
+  </div>
+</div></section>
+
+<!-- ── PRICING ── -->
+<section id="pricing"><div class="wrap">
+  <div class="shead"><span class="k">05</span><h2>Pricing &amp; packaging</h2></div>
+  <p class="lead">Freemium where the storage boundary <i>is</i> the pricing boundary: a complete local product free forever, a hosted superset (sync + cross-repo search) as the upsell.</p>
+  <div class="grid3" style="margin-bottom:18px">
+    <div class="tier">
+      <div class="tn">FREE</div><div class="tp">$0</div><div class="ts">the acquisition engine</div>
+      <ul><li>Full capture + 30-sec resume</li><li>Unlimited repos/branches (local)</li><li>BYO-key explore</li><li>1 machine · no account</li><li>Data never leaves your disk</li></ul>
+    </div>
+    <div class="tier feat">
+      <div class="badge">v1 paid</div>
+      <div class="tn">PRO</div><div class="tp">$8<small>/mo · $6 annual</small></div><div class="ts">individual upgrade</div>
+      <ul><li>Everything in Free</li><li><b>Cross-machine sync</b></li><li><b>Cross-repo search</b></li><li>Cloud backup / restore</li></ul>
+    </div>
+    <div class="tier">
+      <div class="tn">TEAM <span style="color:var(--amber);font-size:10px">SOON</span></div><div class="tp">$12<small>/user · $10 annual</small></div><div class="ts">team upgrade</div>
+      <ul><li>Everything in Pro</li><li>Shared / org KBs</li><li>Managed LLM + search keys</li><li>Admin controls</li></ul>
+    </div>
+  </div>
+  <div class="card">
+    <h4 style="font-size:14px;margin-bottom:4px">Price anchoring vs comparable dev tools <span style="color:var(--muted);font-weight:500">(individual plan, $/mo)</span></h4>
+    <div class="bars" style="margin-top:12px">
+      <div class="brow"><div class="bl">Cursor Pro</div><div class="btrack"><div class="bfill mut" style="width:100%">$20</div></div></div>
+      <div class="brow"><div class="bl">Windsurf Pro</div><div class="btrack"><div class="bfill mut" style="width:75%">$15</div></div></div>
+      <div class="brow"><div class="bl">Tabnine Pro</div><div class="btrack"><div class="bfill mut" style="width:60%">$12</div></div></div>
+      <div class="brow"><div class="bl">brain2 Team</div><div class="btrack"><div class="bfill t" style="width:60%">$12</div></div></div>
+      <div class="brow"><div class="bl">GitHub Copilot Pro</div><div class="btrack"><div class="bfill mut" style="width:50%">$10</div></div></div>
+      <div class="brow"><div class="bl">brain2 Pro</div><div class="btrack"><div class="bfill hi" style="width:40%">$8 — additive, below the assistant band</div></div></div>
+      <div class="brow"><div class="bl">Raycast Pro</div><div class="btrack"><div class="bfill mut" style="width:40%">$8</div></div></div>
+      <div class="brow"><div class="bl">Obsidian Sync</div><div class="btrack"><div class="bfill mut" style="width:22%">$4–5 · closest analog</div></div></div>
+    </div>
+    <p class="cap">$8 sits deliberately below the $10–20 AI-assistant band: brain2 is an <i>additive</i> companion, not a competing budget line. Conversion target <b>2–3% year one</b> (dev freemium runs 1–3%; high-intent tools reach 8–12%), stretch 5%+. Leading indicator: time-to-first-resume-card (&lt;10 min → 3–4× conversion).</p>
+  </div>
+</div></section>
+
+<!-- ── PAYMENTS ── -->
+<section id="payments"><div class="wrap">
+  <div class="shead"><span class="k">06</span><h2>Payments &amp; billing</h2></div>
+  <p class="lead">Launch on a Merchant-of-Record (Lemon Squeezy), not raw Stripe. The ~1.5–2pt premium buys away global VAT/GST/sales-tax registration, filing, remittance, <i>and liability</i> — the decisive factor for a solo founder.</p>
+  <div class="grid2">
+    <div class="card">
+      <h4 style="font-size:14px;margin-bottom:10px">MoR premium vs Stripe (monthly cost)</h4>
+      <table>
+        <thead><tr><th>MRR</th><th class="num">Stripe stack*</th><th class="num">MoR (LS/Paddle)</th><th class="num">Premium</th></tr></thead>
+        <tbody>
+          <tr><td>$1,000</td><td class="num">~$74</td><td class="num">~$84</td><td class="num">~$10</td></tr>
+          <tr><td>$5,000</td><td class="num">~$370</td><td class="num">~$417</td><td class="num">~$47</td></tr>
+          <tr class="hl"><td>$10,000</td><td class="num">~$740</td><td class="num">~$833</td><td class="num">~$93</td></tr>
+        </tbody>
+      </table>
+      <p class="cap">*Stripe "full stack" = processing + intl/FX + Billing 0.7% + Tax 0.5% (calc only — <b>you still register, file &amp; remit</b>). MoR = 5% + $0.50, tax fully handled. The premium is dwarfed by the compliance labor + liability it removes.</p>
+    </div>
+    <div class="card">
+      <h4 style="font-size:14px;margin-bottom:10px">Dunning recovers involuntary churn</h4>
+      <div class="bars">
+        <div class="brow"><div class="bl">Smart retries</div><div class="btrack"><div class="bfill" style="width:40%">20–40%</div></div></div>
+        <div class="brow"><div class="bl">+ Dunning emails</div><div class="btrack"><div class="bfill" style="width:60%">+10–20%</div></div></div>
+        <div class="brow"><div class="bl">+ Card updater</div><div class="btrack"><div class="bfill t" style="width:70%">30–70% combined</div></div></div>
+      </div>
+      <div class="note win" style="margin-top:14px"><p>At $10k MRR, recovering <b>2–5% of MRR ($200–500/mo)</b> through dunning roughly <b>pays for the MoR fee premium itself.</b></p></div>
+      <p class="cap" style="margin-top:10px">Stack: one paid Cloud plan · 14-day card-required trial (2–3× conversion) · entitlement keyed to Supabase <code>org_id</code> · local tier never calls billing · revenue analytics via MoR dashboard + free ProfitWell.</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- ── METRICS ── -->
+<section id="metrics"><div class="wrap">
+  <div class="shead"><span class="k">07</span><h2>Metrics &amp; go/no-go</h2></div>
+  <p class="lead">North Star = <b>Weekly Context-Restoring Resumes</b> (a resume served from a non-empty KB where the dev kept working). Instrument behavior only — never code content.</p>
+  <div class="grid2">
+    <div class="card">
+      <h4 style="font-size:14px;margin-bottom:12px">Activation → revenue funnel</h4>
+      <div class="funnel">
+        <div class="fstep" style="width:100%;background:#4f46e5"><span>Install / first-run</span><span class="pct">100%</span></div>
+        <div class="fstep" style="width:84%;background:#6366f1"><span>First capture</span><span class="pct">promise made</span></div>
+        <div class="fstep" style="width:64%;background:#7c3aed"><span>Activation: restoring resume</span><span class="pct">≥25%</span></div>
+        <div class="fstep" style="width:48%;background:#8b5cf6"><span>Week-1 retention</span><span class="pct">≥34%</span></div>
+        <div class="fstep" style="width:34%;background:#a855f7"><span>Upgrade intent</span><span class="pct">click</span></div>
+        <div class="fstep" style="width:22%;background:#0d9488"><span>Paid (cloud)</span><span class="pct">≥5%</span></div>
+      </div>
+      <p class="cap">Activation is deliberately <i>not</i> gated behind auth — the free tier is loopback, no key. TTV targets: first capture &lt;10 min, activation &lt;24h (stretch: same session).</p>
+    </div>
+    <div class="card">
+      <h4 style="font-size:14px;margin-bottom:12px">Launch go/no-go scorecard</h4>
+      <table>
+        <thead><tr><th>Gate</th><th>NO-GO</th><th>GO</th><th>STRONG</th></tr></thead>
+        <tbody>
+          <tr><td><b>Activation rate</b> <span style="color:var(--red);font-size:10px">HARD</span></td><td><span class="pill no">&lt;20%</span></td><td><span class="pill go">≥25%</span></td><td><span class="pill str">≥40%</span></td></tr>
+          <tr><td><b>Crash-free sessions</b> <span style="color:var(--red);font-size:10px">HARD</span></td><td><span class="pill no">&lt;99%</span></td><td><span class="pill go">≥99.5%</span></td><td><span class="pill str">≥99.9%</span></td></tr>
+          <tr><td>Month-1 users</td><td><span class="pill no">&lt;400</span></td><td><span class="pill go">≥847</span></td><td><span class="pill str">&gt;1,200</span></td></tr>
+          <tr><td>Week-1 NSM retention</td><td><span class="pill no">&lt;25%</span></td><td><span class="pill go">≥34%</span></td><td><span class="pill str">≥45%</span></td></tr>
+          <tr><td>Free→cloud <span style="color:var(--muted);font-size:10px">(mo-2 gate)</span></td><td><span class="pill no">&lt;3%</span></td><td><span class="pill go">≥5%</span></td><td><span class="pill str">≥8%</span></td></tr>
+        </tbody>
+      </table>
+      <p class="cap"><b>Decision rule:</b> GO to launch only if activation ≥25% <b>AND</b> crash-free ≥99.5% on the beta cohort. Conversion is explicitly a month-2+ gate, not launch-day.</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- ── LEGAL ── -->
+<section id="legal"><div class="wrap">
+  <div class="shead"><span class="k">08</span><h2>Legal, privacy &amp; trust</h2></div>
+  <p class="lead">The highest-risk workstream, because brain2 stores code-adjacent data. The strategy pre-SOC 2 is <b>architecture + transparency</b>, not certifications.</p>
+  <div class="grid2">
+    <div class="card">
+      <h4 style="font-size:14px;margin-bottom:10px">Minimum kit before charging</h4>
+      <ul class="check">
+        <li><b>Single-member LLC</b> + EIN + business bank account</li>
+        <li><b>Merchant-of-Record</b> for tax offload (Lemon Squeezy/Paddle)</li>
+        <li><b>ToS + Privacy Policy + DPA</b> (Termly/GetTerms ~$10–49 → one lawyer pass)</li>
+        <li><b>/security page</b> + public sub-processor list</li>
+        <li><b>Confirm LLM/embedding no-train/no-retain terms</b> — the #1 disclosure</li>
+        <li>Self-serve data export + delete; egress disclosed at the enable seam</li>
+      </ul>
+      <div class="note win" style="margin-top:12px"><p><b>Trust lead:</b> "your code never leaves your machine" is <i>literally true</i> on the free tier (loopback, no network) — a claim most AI tools can't make. Verifiable beats marketed.</p></div>
+    </div>
+    <div class="card">
+      <h4 style="font-size:14px;margin-bottom:10px">SOC 2 — defer until the first enterprise deal</h4>
+      <div class="bars" style="margin-top:6px">
+        <div class="brow"><div class="bl">Type I · 3–6 mo</div><div class="btrack"><div class="bfill" style="width:50%">$25k–$40k</div></div></div>
+        <div class="brow"><div class="bl">Type II · 6–12 mo</div><div class="btrack"><div class="bfill hi" style="width:90%">$45k–$70k</div></div></div>
+      </div>
+      <p class="cap" style="margin-top:10px">Trigger = first serious deal that gates on it. Start Type I for fast credibility (40–60% of cost credits toward Type II within 12 mo), then Type II for sustained enterprise demand. Use Vanta/Drata/Comp AI. Pre-write SIG/CAIQ answers now — the architecture already satisfies most.</p>
+      <div class="note risk" style="margin-top:12px"><p><b>Why existential:</b> a missing LLC, an unconfirmed no-train term, or a privacy claim the architecture doesn't back is a trust-and-liability event no amount of HN traction survives. Treat WS-5 sign-off as a hard precondition of charging money.</p></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ── CRITICAL PATH ── -->
+<section id="crit"><div class="wrap">
+  <div class="shead"><span class="k">09</span><h2>Critical path &amp; the one big risk</h2></div>
+  <div class="grid2">
+    <div class="card">
+      <h4 style="font-size:14px;margin-bottom:12px">The smallest set of must-dos</h4>
+      <ol style="margin:0;padding-left:20px;color:var(--slate);font-size:13.5px">
+        <li style="margin:9px 0"><b>W0 — the live capture→resume loop works on both tiers, instrumented.</b> Everything measurable hangs off it.</li>
+        <li style="margin:9px 0"><b>The aha is reachable in session 1</b> — guaranteed first capture + a populated card, no <code>gap</code> dead-end.</li>
+        <li style="margin:9px 0"><b>One demo GIF + a validated wedge.</b> The GIF powers every channel; the wedge must paraphrase clean (≥5/10).</li>
+        <li style="margin:9px 0"><b>Show HN, executed with discipline</b> — problem-framed title, founder first comment, 6h thread camp.</li>
+        <li style="margin:9px 0"><b>Pass the go/no-go</b> — activation ≥25% AND crash-free ≥99.5% before posting.</li>
+      </ol>
+      <p class="cap">If selling at launch, add (6) the paid surface live and legal. If not ready — <b>launch free-only and defer the paid gate</b>; the free spike doesn't depend on it.</p>
+    </div>
+    <div class="card" style="border-color:#fca5a5;background:linear-gradient(180deg,#fff,#fff7f7)">
+      <h4 style="font-size:14px;margin-bottom:10px;color:#991b1b">⚠ Biggest risk: WS-5 (legal/privacy/trust)</h4>
+      <p>Every other workstream's downside is a <i>slow</i> launch. WS-5's downside is <i>existential</i> — brain2 captures branches, file paths, diffs, and intent, and on the cloud tier that egresses to Supabase + LLM APIs.</p>
+      <p style="margin-bottom:6px"><b>Mitigations, on the critical path:</b></p>
+      <ul class="tight">
+        <li>Make the verifiable "code never leaves your machine" free tier the trust lead.</li>
+        <li>Confirm + document LLM no-train/no-retain terms <b>before W4 close</b>.</li>
+        <li>One fixed-fee lawyer pass on ToS/Privacy/DPA before the first paid dollar.</li>
+        <li>Publish <code>/security</code> with the live sub-processor list before cloud is sellable.</li>
+      </ul>
+    </div>
+  </div>
+</div></section>
+
+<div class="wrap">
+  <footer>
+    <b style="color:var(--slate)">brain2 — Launch Plan Executive Briefing.</b> Synthesized from the eight workstream documents in <code>docs/launch/</code>, grounded in the brain2 <code>dev</code> knowledge base (25 findings, 48-node graph) and verified web research. Advisory, not legal advice.
+    <div class="src">Source docs: ws1-positioning-icp · ws2-distribution-channels · ws3-pricing-packaging · ws4-payments-billing · ws5-legal-privacy-trust · ws6-metrics-instrumentation · ws7-launch-runbook · ws8-onboarding-growth · Generated 2026-05-29</div>
+  </footer>
+</div>
+
+</body>
+</html>

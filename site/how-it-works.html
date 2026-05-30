@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>brain2 — how it works</title>
+<meta name="description" content="The resume card is one read of a deeper store. Every capture maps your reasoning into a coverage-banded preamble — capture → distill → map → tap — growable from the web, queryable from anywhere." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="stripe"></div>
+
+  <!-- ── NAV ─────────────────────────────────────────────────────────── -->
+  <nav class="bar">
+    <div class="wrap">
+      <a class="brand" href="index.html"><span class="mark">◌</span> brain2</a>
+      <span class="spacer"></span>
+      <div class="navlinks hide-sm">
+        <a href="how-it-works.html" class="active">how it works</a>
+        <a href="access.html">access</a>
+        <a href="install.html">install</a>
+      </div>
+      <a class="nav-repo hide-sm" href="https://github.com/" target="_blank" rel="noopener">repo ↗</a>
+      <a class="nav-cta" href="install.html">install free</a>
+    </div>
+  </nav>
+
+  <!-- ── PAGE HEAD ───────────────────────────────────────────────────── -->
+  <section class="page-head glow">
+    <div class="wrap">
+      <div class="kicker"><span class="mark">◌</span> how it works</div>
+      <h1>Not a notepad. A knowledge engine.</h1>
+      <p class="lead">The resume card is one read of a deeper store. Every capture records the <em>reasoning</em>, not just the files — and the engine distills it into a preamble: a coverage-banded map of what you know, growable from the web, queryable from anywhere.</p>
+    </div>
+  </section>
+
+  <!-- ── RESUME CARD IN CONTEXT ──────────────────────────────────────── -->
+  <section class="sec bordered washed" style="padding:60px 0 70px;">
+    <div class="wrap">
+      <div class="kicker"><span class="mark">◌</span> the resume card</div>
+      <div class="t-context">
+        <div>
+          <h2 class="ctx-title">Everything you need to re-enter. Nothing you don't.</h2>
+          <div class="ticks">
+            <div class="tick">
+              <span class="b">▸</span>
+              <div>
+                <div class="tt">the latest hypothesis</div>
+                <div class="td">One line, written at capture — the thing you were actually trying to do.</div>
+              </div>
+            </div>
+            <div class="tick">
+              <span class="b">▸</span>
+              <div>
+                <div class="tt">a snapshot trail</div>
+                <div class="td">7 timestamped states behind the card, so the history is there if you need it.</div>
+              </div>
+            </div>
+            <div class="tick">
+              <span class="b">▸</span>
+              <div>
+                <div class="tt">a coverage band</div>
+                <div class="td">rich / sparse / gap — how much real signal the card is built from. Click the chip to cycle it.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- resume card (big) -->
+        <div class="card big">
+          <div class="card-bar">
+            <span class="mark">◌</span>
+            <span class="proj">brain2</span>
+            <span class="sep">·</span>
+            <span class="branch">dev</span>
+            <span class="spacer"></span>
+            <span class="live"></span>
+            <span class="ago">3 minutes ago</span>
+          </div>
+          <div class="card-body">
+            <div class="card-label">HYPOTHESIS</div>
+            <p class="card-hypo">Wiring <span class="id">SupabaseStore</span> behind <span class="id">get_store()</span> so the cloud tier carries the per-request token.</p>
+            <div class="card-meta">
+              <span><span class="n">7</span> snapshots</span>
+              <span class="bar">│</span>
+              <span><span class="n">4</span> files</span>
+              <span class="spacer"></span>
+              <button class="cov" data-cov="rich"><span class="dot"></span> coverage: rich</button>
+            </div>
+            <div class="card-where">
+              <div class="card-label">WHERE YOU WERE</div>
+              <div class="file cursor">
+                <span class="pip">▸</span><span class="dir">src/brain2/store/</span><span class="name">supabase.py</span>
+                <span class="cur">cursor</span><span class="grow"></span><span class="add">+84</span><span class="del">−12</span>
+              </div>
+              <div class="file">
+                <span class="pip">·</span><span class="dir">src/brain2/api/</span><span class="name">deps.py</span>
+                <span class="grow"></span><span class="add">+22</span><span class="del">−3</span>
+              </div>
+              <div class="file">
+                <span class="pip">·</span><span class="dir">src/brain2/store/</span><span class="name">__init__.py</span>
+                <span class="grow"></span><span class="add">+6</span><span class="del">−1</span>
+              </div>
+              <div class="diffstat">
+                <span>git diff --stat</span>
+                <span class="rule"></span>
+                <span class="files">4 files</span>
+                <span class="add">+112</span>
+                <span class="del">−16</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── UNDER THE HOOD (knowledge engine) ───────────────────────────── -->
+  <section id="engine" class="sec bordered" style="padding:70px 0;">
+    <div class="wrap">
+      <div class="kicker"><span class="mark">◌</span> under the hood</div>
+      <h2 class="sec-title">From snapshot to a context spine.</h2>
+      <p class="engine-intro">Each capture moves through four stages. The output isn't a pile of notes — it's a single, coverage-banded map of what this repo and branch actually know.</p>
+
+      <div class="pipe-strip">
+        <span class="v">capture</span><span class="a">──▶</span>
+        <span class="v">distill</span><span class="a">──▶</span>
+        <span class="v">map</span><span class="a">──▶</span>
+        <span class="v">tap</span>
+      </div>
+
+      <div class="engine-flow">
+        <div class="stage">
+          <div class="sh"><span class="sn">01</span><span class="sv">capture</span></div>
+          <h3>Reasoning, not files</h3>
+          <p>Each snapshot becomes a <span class="id">finding</span> — your hypothesis and intent, kept alongside the diff and cursor. The thinking is the payload.</p>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="sn">02</span><span class="sv">distill</span></div>
+          <h3>A standing synopsis</h3>
+          <p>The engine rolls findings into a <span class="id">synopsis</span> — your standing topics, each tagged with a coverage band so you know how grounded it is.</p>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="sn">03</span><span class="sv">map</span></div>
+          <h3>One context spine</h3>
+          <p>Findings link across sessions into a single <span class="id">preamble</span> — the map of what this repo and branch actually know, not a pile of notes.</p>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="sn">04</span><span class="sv">tap</span></div>
+          <h3>Grow on demand</h3>
+          <p>Thin coverage? The <span class="id">gap-fill</span> pipeline — plan, search, crawl, extract, merge — pulls from the web and folds it back into the map.</p>
+        </div>
+      </div>
+
+      <!-- the preamble artifact -->
+      <div class="card preamble">
+        <div class="card-bar">
+          <span class="mark">◌</span>
+          <span class="lbl">brain2 · dev · preamble</span>
+          <span class="spacer"></span>
+          <button class="cov" data-cov="rich"><span class="dot"></span> coverage: rich</button>
+        </div>
+        <div class="card-body">
+<pre><span class="tag">&lt;preamble&gt;</span>
+  <span class="tag">&lt;synopsis&gt;</span>
+    <span class="tag">&lt;entry</span> <span class="attr">topic=</span><span class="txt">"Storage tiers"</span><span class="tag">&gt;</span>Local SQLite vs cloud Supabase behind one get_store() seam.<span class="tag">&lt;/entry&gt;</span>
+    <span class="tag">&lt;entry</span> <span class="attr">topic=</span><span class="txt">"Per-request token"</span><span class="tag">&gt;</span>SupabaseStore carries the access_token so RLS scopes correctly.<span class="tag">&lt;/entry&gt;</span>
+    <span class="tag">&lt;entry</span> <span class="attr">topic=</span><span class="txt">"Coverage banding"</span><span class="tag">&gt;</span>rich / sparse / gap — how much real signal a card is built from.<span class="tag">&lt;/entry&gt;</span>
+  <span class="tag">&lt;/synopsis&gt;</span>
+<span class="tag">&lt;/preamble&gt;</span></pre>
+          <div class="cap"><span class="ok">●</span> the same spine the resume card reads — and what every surface taps</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── INSTALL CTA (slim) ──────────────────────────────────────────── -->
+  <section class="cta-band bordered washed">
+    <div class="wrap">
+      <div class="cta-copy">
+        <h2>Run the loop yourself.</h2>
+        <p>Two lines, on 127.0.0.1. Capture, then come back to the card.</p>
+      </div>
+      <div class="install" style="max-width:480px;">
+        <span class="dollar">$</span>
+        <code>BRAIN2_BACKEND=local python -m brain2.api.main</code>
+        <button class="copy" data-copy="BRAIN2_BACKEND=local python -m brain2.api.main" aria-label="copy run command">copy</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── NEXT ────────────────────────────────────────────────────────── -->
+  <section class="sec" style="padding:48px 0 64px;">
+    <div class="wrap">
+      <div class="nextnav">
+        <a class="nextlink prev" href="index.html">
+          <div class="lab">← back</div>
+          <div class="ttl">The 30-second resume</div>
+        </a>
+        <a class="nextlink fwd" href="access.html">
+          <div class="lab">next</div>
+          <div class="ttl">Tap it from anywhere <span class="a">›</span></div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ──────────────────────────────────────────────────────── -->
+  <footer>
+    <div class="wrap">
+      <div class="foot-top">
+        <div class="foot-brand">
+          <span class="b"><span class="mark">◌</span> brain2</span>
+          <p>Context-capture &amp; resume engine. Local-first, loopback-only, yours.</p>
+        </div>
+        <div class="foot-cols">
+          <div class="foot-col">
+            <div class="h">product</div>
+            <a href="how-it-works.html">how it works</a><a href="access.html">access</a><a href="install.html">install</a>
+          </div>
+          <div class="foot-col">
+            <div class="h">repo</div>
+            <a href="#">github</a><a href="#">releases</a><a href="#">issues</a>
+          </div>
+          <div class="foot-col">
+            <div class="h">docs</div>
+            <a href="install.html">quickstart</a><a href="how-it-works.html#engine">the engine</a><a href="access.html">surfaces</a>
+          </div>
+          <div class="foot-col">
+            <div class="h">license</div>
+            <a href="#">MIT</a><a href="#">security</a><a href="#">changelog</a>
+          </div>
+        </div>
+      </div>
+      <div class="foot-base">◌ divergence mark · brain2 — captured locally, replayed in 30 seconds.</div>
+    </div>
+  </footer>
+
+  <script src="site.js"></script>
+</body>
+</html>

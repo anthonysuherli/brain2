@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>brain2 — Executive Summary & Getting Started</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c2230; --ink:#e6edf3; --muted:#9aa7b4;
+    --line:#2a313c; --accent:#6ea8fe; --accent2:#7ee787; --warn:#ffb454; --code:#0b0e13;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:920px;margin:0 auto;padding:48px 24px 96px}
+  header.hero{padding:40px 0 28px;border-bottom:1px solid var(--line);margin-bottom:36px}
+  .mark{font:600 13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);
+    letter-spacing:.18em;text-transform:uppercase;margin-bottom:14px}
+  h1{font-size:40px;line-height:1.1;margin:.1em 0 .2em;letter-spacing:-.02em}
+  .tag{color:var(--accent2);font-weight:600}
+  .lede{color:var(--muted);font-size:18px;max-width:62ch;margin:.4em 0 0}
+  .meta{margin-top:18px;color:var(--muted);font-size:13px}
+  nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:26px 0 0}
+  nav.toc a{font-size:13px;color:var(--accent);text-decoration:none;border:1px solid var(--line);
+    padding:5px 11px;border-radius:999px;background:var(--panel)}
+  nav.toc a:hover{border-color:var(--accent)}
+  h2{font-size:26px;margin:52px 0 14px;letter-spacing:-.01em;padding-top:8px}
+  h3{font-size:18px;margin:28px 0 8px;color:#cdd6e0}
+  p{margin:12px 0}
+  .muted{color:var(--muted)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:20px 22px;margin:18px 0}
+  .grid{display:grid;gap:14px}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:680px){.g3,.g2{grid-template-columns:1fr}}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+  .stat b{display:block;font-size:30px;line-height:1.1;color:var(--accent)}
+  .stat span{color:var(--muted);font-size:13px}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+    overflow:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:#d7e1ec}
+  code{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;background:#1a2030;
+    padding:1.5px 6px;border-radius:6px;color:#cfe0ff}
+  pre code{background:none;padding:0;color:inherit}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+  tr:last-child td{border-bottom:none}
+  .flow{background:var(--code);border:1px solid var(--line);border-radius:12px;padding:18px;
+    font:12.5px/1.7 ui-monospace,Menlo,monospace;color:#bcd;white-space:pre;overflow:auto}
+  .pill{display:inline-block;font-size:11px;padding:2px 9px;border-radius:999px;font-weight:600}
+  .ok{background:rgba(126,231,135,.14);color:var(--accent2);border:1px solid rgba(126,231,135,.3)}
+  .soon{background:rgba(255,180,84,.12);color:var(--warn);border:1px solid rgba(255,180,84,.3)}
+  .callout{border-left:3px solid var(--accent);background:var(--panel2);padding:14px 18px;
+    border-radius:0 12px 12px 0;margin:18px 0;color:#cdd6e0}
+  .callout.warn{border-left-color:var(--warn)}
+  ol,ul{padding-left:22px}
+  li{margin:6px 0}
+  footer{margin-top:64px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  .step{counter-reset:none}
+  .kvs{font-size:14px}
+  .kvs td:first-child{color:var(--muted);width:36%}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="mark">brain2 &middot; context-capture &amp; resume engine</div>
+  <h1>Executive Summary <span class="muted" style="font-weight:400">&amp;</span> Getting Started</h1>
+  <p class="lede">Eliminates the ~9.5-minute context-rebuild tax by capturing developer intent on
+  interruption and replaying it as a <span class="tag">30-second resume card</span>. The wedge:
+  <em>&ldquo;git stash for your head.&rdquo;</em></p>
+  <div class="meta">project <code>brain2</code> &middot; kb <code>dev</code> &middot; generated 2026-05-29 &middot; authored from the live codebase</div>
+  <nav class="toc">
+    <a href="#problem">Problem</a>
+    <a href="#loop">The loop</a>
+    <a href="#arch">Architecture</a>
+    <a href="#surfaces">Surfaces</a>
+    <a href="#status">Status</a>
+    <a href="#gtm">GTM</a>
+    <a href="#start">Getting started</a>
+  </nav>
+</header>
+
+<section id="problem">
+  <h2>1 &middot; The problem &amp; the product</h2>
+  <p>Every interruption forces a developer to rebuild context — re-open files, re-read diffs,
+  reconstruct &ldquo;what was I doing?&rdquo; That tax runs about <strong>9.5 minutes per resume</strong>.
+  <strong>brain2</strong> captures your working <em>intent</em> the moment you're interrupted and
+  replays it as a 30-second resume card when you come back.</p>
+  <div class="grid g3">
+    <div class="stat"><b>~9.5m</b><span>context-rebuild tax per interruption (what brain2 removes)</span></div>
+    <div class="stat"><b>30s</b><span>target time-to-resume with the resume card</span></div>
+    <div class="stat"><b>2</b><span>tiers from one engine — free local &amp; paid cloud</span></div>
+  </div>
+  <p class="muted">brain2 is a self-contained fork of the Divergence knowledge engine, repurposed
+  from &ldquo;research a topic&rdquo; into &ldquo;remember where I was.&rdquo;</p>
+</section>
+
+<section id="loop">
+  <h2>2 &middot; The end-to-end loop</h2>
+  <div class="flow"> interruption                   return to work
+      │                               │
+   CAPTURE ───▶ persist as Finding ───▶ RESUME (tap) ───▶ coverage band
+ (snapshot:                in a repo+branch KB          ├─ rich / sparse → resume card
+  branch, files,                                        └─ gap → EXPLORE (web gap-fill)
+  diff, hypothesis)                                            └──▶ refresh card</div>
+  <ol>
+    <li><strong>Capture</strong> — a <code>WorkspaceSnapshot</code> (branch, open/cursor files,
+      <code>git diff --stat</code>, and a one-line <em>hypothesis</em>) collected sub-second on
+      <code>blur</code> / <code>git_checkout</code> / <code>idle</code> / <code>manual</code>.</li>
+    <li><strong>Persist</strong> — an adapter turns the snapshot into a <strong>Finding</strong> in a
+      KB keyed by <em>project = repo name</em>, <em>kb = git branch</em>.</li>
+    <li><strong>Resume</strong> — tapping the KB returns a <strong>preamble</strong> (synopsis spine +
+      latest hypothesis + recent snapshots) and a <strong>coverage band</strong>
+      (<code>rich</code> / <code>sparse</code> / <code>gap</code>).</li>
+    <li><strong>Explore</strong> — on a <code>gap</code>, the pipeline (plan → search → crawl → extract →
+      merge) seeds the KB from the web and rebuilds the synopsis; the card auto-refreshes.</li>
+  </ol>
+</section>
+
+<section id="arch">
+  <h2>3 &middot; Architecture</h2>
+  <p>All engine logic — capture, preamble/coverage banding, synopsis, exploration — is shared and
+  <strong>never touches a storage client directly</strong>; it calls <code>get_store()</code>. A
+  <code>Store</code> protocol has two implementations, selected by <code>BRAIN2_BACKEND</code>.</p>
+  <table>
+    <tr><th>Concern</th><th>Free / local</th><th>Paid / cloud</th></tr>
+    <tr><td>Store impl</td><td><code>SQLiteStore</code></td><td><code>SupabaseStore</code></td></tr>
+    <tr><td>Persistence</td><td>SQLite + <code>sqlite-vec</code> at <code>~/.brain2/brain.db</code></td><td>Supabase: GoTrue + pgvector + RLS</td></tr>
+    <tr><td>Identity</td><td>single synthetic <code>org_id="local"</code></td><td>real JWT per request</td></tr>
+    <tr><td>Auth</td><td><strong>none</strong> — loopback-only</td><td>Bearer <code>BRAIN2_API_KEY</code></td></tr>
+  </table>
+  <div class="callout">The local launcher <strong>refuses to start on a non-loopback host</strong>
+  because auth is disabled there — that guard is the entire reason the auth-less tier is safe.</div>
+  <p class="muted">Imports are always <code>brain2.*</code>; the fork is standalone with
+  <strong>no cross-repo dependency</strong> on Divergence. Engine improvements are synced manually
+  (copy file, rename imports).</p>
+</section>
+
+<section id="surfaces">
+  <h2>4 &middot; Surfaces</h2>
+  <div class="grid g3">
+    <div class="panel"><h3 style="margin-top:0">FastAPI</h3>
+      <p class="muted"><code>/v1/capture</code> &middot; <code>/v1/resume/{project}/{kb}</code> &middot;
+      <code>/v1/explore/...</code> &middot; <code>/health</code></p></div>
+    <div class="panel"><h3 style="margin-top:0">Claude Code plugin</h3>
+      <p class="muted">MCP tools <code>brain2_capture</code>, <code>brain2_resume</code>,
+      <code>brain2_explore</code>; skills <code>/brain2:capture&nbsp;|&nbsp;resume&nbsp;|&nbsp;search&nbsp;|&nbsp;explore</code></p></div>
+    <div class="panel"><h3 style="margin-top:0">VS Code extension</h3>
+      <p class="muted">Automatic capture triggers + the resume-card webview, rendered on focus.</p></div>
+  </div>
+</section>
+
+<section id="status">
+  <h2>5 &middot; Status (honest)</h2>
+  <p><span class="pill ok">SHIPPED</span> Engine fork, VS Code extension (triggers + card),
+  resume-card polish, the always-open explore seam, and the <strong>two-tier storage</strong>
+  with <code>get_store()</code>/<code>active_backend()</code> selection. v0 was built
+  subagent-driven (4 tasks, 57 tests), merged, and packaged as a Claude Code plugin.</p>
+  <p><span class="pill soon">FUTURE — designed, not built</span> The paid differentiators:
+  managed keys, cross-machine sync, cross-repo search, team sharing. Cloud MVP today is just the
+  Supabase backend + GoTrue login.</p>
+</section>
+
+<section id="gtm">
+  <h2>6 &middot; Go-to-market (from the KB)</h2>
+  <table class="kvs">
+    <tr><td>Model</td><td>Freemium dev tool — <em>free forever on your machine; pay only when you want your context to follow you.</em></td></tr>
+    <tr><td>Pricing</td><td>Pro <strong>$8/mo</strong> (Lemon Squeezy, Merchant-of-Record) &middot; Team $12</td></tr>
+    <tr><td>Timeline</td><td>6-week runbook, W0 = wk of 2026-05-29 → <strong>Show HN launch Tue 2026-06-30</strong></td></tr>
+    <tr><td>Go/no-go gate</td><td><strong>activation ≥ 25% AND crash-free ≥ 99.5%</strong></td></tr>
+    <tr><td>Existential risk</td><td>Legal/privacy/trust — brain2 stores code. The free tier's verifiable &ldquo;code never leaves your machine&rdquo; is the trust lead.</td></tr>
+  </table>
+</section>
+
+<section id="start">
+  <h2>7 &middot; Getting-started user guide</h2>
+
+  <h3>Prerequisites</h3>
+  <ul>
+    <li>Python <strong>3.11</strong>, <code>git</code>, and (local tier) <strong><code>sqlite-vec</code></strong>. <code>uv</code> is intended but plain <code>venv</code> works.</li>
+    <li>Cloud tier only: Supabase creds + a <code>BRAIN2_API_KEY</code>.</li>
+  </ul>
+
+  <h3>Step 1 — Install the backend</h3>
+<pre><code>cd backend
+python3.11 -m venv .venv                          # or: uv venv
+.venv/bin/pip install -e ".[dev]" sqlite-vec      # or: uv sync &amp;&amp; uv pip install sqlite-vec
+cp .env.example .env                              # pick the FREE or PAID block</code></pre>
+
+  <h3>Step 2 — Run the engine</h3>
+  <p><strong>Free / local</strong> (SQLite, no Supabase, no API key, loopback-only):</p>
+<pre><code>BRAIN2_BACKEND=local python -m brain2.api.main            # blessed launcher; binds 127.0.0.1:8002
+BRAIN2_BACKEND=local python -m brain2.interfaces.mcp.server</code></pre>
+  <p><strong>Paid / cloud</strong> (today's Supabase backend; needs the cloud <code>.env</code> block):</p>
+<pre><code>uvicorn brain2.api.main:app --reload --port 8002
+python -m brain2.interfaces.mcp.server</code></pre>
+  <p class="muted">Sanity check: <code>curl http://127.0.0.1:8002/health</code></p>
+
+  <h3>Step 3 — Install the Claude Code plugin</h3>
+<pre><code>/plugin marketplace add /Users/suherli/Repositories/brain2
+/plugin install brain2@brain2</code></pre>
+  <div class="callout warn">Then <strong>reload the session</strong> so the MCP server connects.
+  The root <code>.mcp.json</code> runs the server from <code>backend/</code>, so that dir needs
+  brain2 + deps installed.</div>
+
+  <h3>Step 4 — Use it: the daily loop</h3>
+  <table>
+    <tr><th>When</th><th>Do this</th><th>What happens</th></tr>
+    <tr><td>About to switch away</td><td><code>/brain2:capture</code></td><td>Saves a snapshot: branch + files + diff + your one-line hypothesis</td></tr>
+    <tr><td>Coming back</td><td><code>/brain2:resume</code></td><td>Replays the 30-second resume card</td></tr>
+    <tr><td>Need an answer from this repo+branch's memory</td><td><code>/brain2:search &lt;q&gt;</code></td><td>Ground → grow → answer</td></tr>
+    <tr><td>Card says <code>coverage=gap</code></td><td><code>/brain2:explore &lt;topic&gt;</code></td><td>Forces the web gap-fill pipeline, then refreshes the card</td></tr>
+  </table>
+  <p class="muted">Targets resolve automatically: <strong>project = git repo name</strong>,
+  <strong>kb = current git branch</strong> — no active-KB state to manage.</p>
+
+  <h3>Step 5 — VS Code extension (optional)</h3>
+<pre><code>cd vscode-extension
+npm install
+npm run build      # then press F5 to launch the Extension Development Host</code></pre>
+  <p>Fires captures automatically on window blur / branch switch / idle, and renders the resume
+  card on focus.</p>
+
+  <div class="callout"><strong>The 30-second mental model:</strong> Capture when you leave →
+  Resume when you're back. Free tier keeps everything on your machine; the cloud tier is the same
+  engine with sync/sharing on the roadmap.</div>
+</section>
+
+<footer>
+  brain2 — context-capture &amp; resume engine &middot; executive summary &amp; getting-started guide.
+  Authored from the live codebase + the <code>brain2/dev</code> KB (GTM findings). Self-contained; no external assets.
+</footer>
+
+</div>
+</body>
+</html>
