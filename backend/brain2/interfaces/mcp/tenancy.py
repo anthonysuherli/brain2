@@ -52,6 +52,22 @@ def _org_for(user_id: str) -> str:
     return om.data[0]["org_id"]
 
 
+def _org_for_or_create(user_id: str) -> str:
+    """Org for the user; provision one if the signup trigger didn't (first-seen)."""
+    try:
+        return _org_for(user_id)
+    except RuntimeError:
+        sb = service_client()
+        org = sb.table("orgs").insert(
+            {"name": f"{user_id[:8]}'s workspace", "owner_user_id": user_id}
+        ).execute().data
+        org_id = org[0]["id"]
+        sb.table("org_members").insert(
+            {"org_id": org_id, "user_id": user_id, "role": "owner"}
+        ).execute()
+        return org_id
+
+
 def _find_or_create(
     sb: Client, table: str, match: dict[str, str], insert: dict[str, object], create: bool
 ) -> str:
