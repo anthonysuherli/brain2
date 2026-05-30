@@ -54,11 +54,13 @@ def active_backend() -> str:
     return backend
 
 
-def get_store(access_token: str | None = None) -> Store:
+def get_store(access_token: str | None = None, *, org_id: str | None = None) -> Store:
     """Return the active Store for this request.
 
     Local: a cached SQLiteStore (connection reused). Cloud: a fresh
-    SupabaseStore bound to ``access_token`` for RLS-scoped finding ops.
+    SupabaseStore bound to ``access_token`` for RLS-scoped finding ops and an
+    optional ``org_id`` (sourced from the verified request JWT) that skips the
+    store's internal MCP-path login.
     """
     if active_backend() == "local":
         path = _default_db_path()
@@ -67,4 +69,4 @@ def get_store(access_token: str | None = None) -> Store:
             store = SQLiteStore(path)
             _local_stores[path] = store
         return store
-    return SupabaseStore(access_token)
+    return SupabaseStore(access_token, org_id=org_id)

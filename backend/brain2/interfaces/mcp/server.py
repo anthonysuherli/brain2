@@ -82,7 +82,7 @@ async def brain2_resume(
     coverage routes behavior: rich → instant recall, gap → offer explore.
     """
     ctx = resolve_tenant(project, kb, create=False)
-    store = get_store(ctx.access_token)
+    store = get_store(ctx.access_token, org_id=ctx.org_id)
     preamble, coverage = await select_preamble(query, store=store, kb_id=ctx.kb_id, depth=depth)
     await store.record_access(
         org_id=ctx.org_id,

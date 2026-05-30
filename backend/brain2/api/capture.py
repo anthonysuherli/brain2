@@ -5,13 +5,14 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from brain2.api.auth import require_api_key
+from brain2.agent.state import Principal
+from brain2.api.auth import require_principal
 from brain2.capture.models import WorkspaceSnapshot
 from brain2.capture.service import persist_snapshot
 from brain2.interfaces.mcp.tenancy import resolve_tenant
 from brain2.knowledge_graph.activity import schedule_activity_update
 
-router = APIRouter(prefix="/v1", dependencies=[Depends(require_api_key)])
+router = APIRouter(prefix="/v1", dependencies=[Depends(require_principal)])
 
 
 class SnapshotRequest(BaseModel):
@@ -35,7 +36,7 @@ class CaptureResponse(BaseModel):
 
 
 @router.post("/capture", response_model=CaptureResponse)
-async def capture(body: SnapshotRequest) -> CaptureResponse:
+async def capture(body: SnapshotRequest, principal: Principal = Depends(require_principal)) -> CaptureResponse:
     """Persist a workspace snapshot as a Finding and return the finding id.
 
     Creates the project and KB on demand (idempotent by name). The coverage
@@ -54,7 +55,7 @@ async def capture(body: SnapshotRequest) -> CaptureResponse:
         terminal_tail=body.terminal_tail,
         hypothesis=body.hypothesis,
     )
-    ctx = resolve_tenant(body.project, body.kb, create=True)
+    ctx = resolve_tenant(body.project, body.kb, create=True, principal=principal)
     finding_id = await persist_snapshot(ctx, snap)
-    schedule_activity_update(snap, finding_id)  # fire-and-forget; best-effort
+    schedule_activity_update(snap, finding_id, access_token=principal.access_token, org_id=principal.org_id)  # fire-and-forget; best-effort
     return CaptureResponse(finding_id=finding_id, coverage="sparse")

@@ -50,14 +50,22 @@ def _now_iso() -> str:
 class SupabaseStore:
     """Store backed by Supabase. `access_token` selects RLS-scoped finding ops."""
 
-    def __init__(self, access_token: str | None = None) -> None:
+    def __init__(self, access_token: str | None = None, org_id: str | None = None) -> None:
         self.access_token = access_token
+        self.org_id = org_id
 
     # --- client selection ----------------------------------------------------
 
     def _user(self) -> Client:
         """RLS-scoped client for finding reads/writes; service client when no token."""
         return user_client(self.access_token) if self.access_token else service_client()
+
+    def _resolve_org(self) -> str:
+        """Injected org (per-user request) or the configured login's org (MCP path)."""
+        if self.org_id is not None:
+            return self.org_id
+        user_id, _ = _login()
+        return _org_for(user_id)
 
     # --- findings — hot path -------------------------------------------------
 
@@ -219,8 +227,7 @@ class SupabaseStore:
 
     def resolve_project(self, name: str, *, create: bool) -> tuple[str, str]:
         """Mirrors interfaces/mcp/tenancy.py resolve_project_id → (org_id, project_id)."""
-        user_id, _ = _login()
-        org_id = _org_for(user_id)
+        org_id = self._resolve_org()
         sb = service_client()
         pid = _find_or_create(
             sb,
@@ -249,8 +256,7 @@ class SupabaseStore:
         `resolve_project`, then service-client reads with explicit `org_id`
         scoping (the load-bearing tenancy invariant). One count="exact" snapshot
         query per KB yields both `snapshot_count` and `last_activity`."""
-        user_id, _ = _login()
-        org_id = _org_for(user_id)
+        org_id = self._resolve_org()
         sb = service_client()
         prows = (
             sb.table("projects").select("id, name").eq("org_id", org_id)
@@ -312,7 +318,7 @@ class SupabaseStore:
                 self._merge_kg_node(sb, nid, props, grounded)
             else:
                 row = {
-                    "org_id": nd.get("org_id"),
+                    "org_id": self.org_id,
                     "kb_id": kb_id,
                     "type": typ,
                     "label": label,
@@ -363,7 +369,7 @@ class SupabaseStore:
             if dupe:
                 continue
             rows.append({
-                "org_id": e.get("org_id"),
+                "org_id": self.org_id,
                 "kb_id": kb_id,
                 "source_node_id": sid,
                 "target_node_id": tid,
@@ -384,6 +390,9 @@ class SupabaseStore:
         min_similarity: float,
     ) -> list[dict]:
         """Reuses the `match_kg_nodes` pgvector RPC (migration 0003)."""
+        # NOTE: kb_id is org-unique and resolved via org-scoped tenancy, so this
+        # is org-safe today. Defense-in-depth org_id filtering needs an RPC param
+        # (tracked as follow-up A6b) — do not add it here without the migration.
         res = service_client().rpc(
             "match_kg_nodes",
             {
@@ -409,32 +418,37 @@ class SupabaseStore:
         node_cols = "id, type, label, properties"
         if seed_node_ids:
             ids = list(dict.fromkeys(seed_node_ids))
-            edges = (
+            eq = (
                 sb.table("kg_edges").select(edge_cols).eq("kb_id", kb_id)
                 .or_(
                     f"source_node_id.in.({','.join(ids)}),"
                     f"target_node_id.in.({','.join(ids)})"
                 )
-                .limit(edge_cap).execute()
-            ).data or []
+            )
+            if self.org_id is not None:
+                eq = eq.eq("org_id", self.org_id)
+            edges = eq.limit(edge_cap).execute().data or []
             node_id_set = set(ids)
             for e in edges:
                 node_id_set.add(e["source_node_id"])
                 node_id_set.add(e["target_node_id"])
             wanted = list(node_id_set)[:node_cap]
-            nodes = (
-                sb.table("kg_nodes").select(node_cols)
-                .in_("id", wanted).execute()
-            ).data if wanted else []
+            if wanted:
+                nq = sb.table("kg_nodes").select(node_cols).in_("id", wanted)
+                if self.org_id is not None:
+                    nq = nq.eq("org_id", self.org_id)
+                nodes = nq.execute().data
+            else:
+                nodes = []
         else:
-            nodes = (
-                sb.table("kg_nodes").select(node_cols).eq("kb_id", kb_id)
-                .limit(node_cap).execute()
-            ).data or []
-            edges = (
-                sb.table("kg_edges").select(edge_cols).eq("kb_id", kb_id)
-                .limit(edge_cap).execute()
-            ).data or []
+            nq = sb.table("kg_nodes").select(node_cols).eq("kb_id", kb_id)
+            if self.org_id is not None:
+                nq = nq.eq("org_id", self.org_id)
+            nodes = nq.limit(node_cap).execute().data or []
+            eq = sb.table("kg_edges").select(edge_cols).eq("kb_id", kb_id)
+            if self.org_id is not None:
+                eq = eq.eq("org_id", self.org_id)
+            edges = eq.limit(edge_cap).execute().data or []
         return {"nodes": nodes or [], "edges": edges or []}
 
     def list_kg_nodes(
@@ -448,6 +462,8 @@ class SupabaseStore:
             .select("id, type, label, properties, created_at")
             .eq("kb_id", kb_id)
         )
+        if self.org_id is not None:
+            q = q.eq("org_id", self.org_id)
         if type:
             q = q.eq("type", type)
         return q.order("created_at", desc=True).limit(n).execute().data or []
@@ -455,22 +471,26 @@ class SupabaseStore:
     def kg_stats(self, kb_id: str) -> dict:
         """Node/edge totals + counts by node type and by relation."""
         sb = service_client()
-        node_count = (
-            sb.table("kg_nodes").select("id", count="exact").eq("kb_id", kb_id).limit(1).execute()
-        ).count or 0
-        edge_count = (
-            sb.table("kg_edges").select("id", count="exact").eq("kb_id", kb_id).limit(1).execute()
-        ).count or 0
+        nq = sb.table("kg_nodes").select("id", count="exact").eq("kb_id", kb_id)
+        if self.org_id is not None:
+            nq = nq.eq("org_id", self.org_id)
+        node_count = nq.limit(1).execute().count or 0
+        eq = sb.table("kg_edges").select("id", count="exact").eq("kb_id", kb_id)
+        if self.org_id is not None:
+            eq = eq.eq("org_id", self.org_id)
+        edge_count = eq.limit(1).execute().count or 0
         by_type: dict[str, int] = {}
-        for r in (
-            sb.table("kg_nodes").select("type").eq("kb_id", kb_id).limit(5000).execute()
-        ).data or []:
+        tq = sb.table("kg_nodes").select("type").eq("kb_id", kb_id)
+        if self.org_id is not None:
+            tq = tq.eq("org_id", self.org_id)
+        for r in tq.limit(5000).execute().data or []:
             t = (r.get("type") if isinstance(r, dict) else None) or "unknown"
             by_type[t] = by_type.get(t, 0) + 1
         by_relation: dict[str, int] = {}
-        for r in (
-            sb.table("kg_edges").select("relation").eq("kb_id", kb_id).limit(5000).execute()
-        ).data or []:
+        rq = sb.table("kg_edges").select("relation").eq("kb_id", kb_id)
+        if self.org_id is not None:
+            rq = rq.eq("org_id", self.org_id)
+        for r in rq.limit(5000).execute().data or []:
             rel = (r.get("relation") if isinstance(r, dict) else None) or "unknown"
             by_relation[rel] = by_relation.get(rel, 0) + 1
         return {

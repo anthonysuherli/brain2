@@ -20,9 +20,13 @@ from __future__ import annotations
 import os
 import secrets
 
+import jwt
 from fastapi import HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from brain2.agent.state import Principal
+from brain2.config import get_settings
+from brain2.interfaces.mcp.tenancy import _org_for_or_create
 from brain2.store import active_backend
 
 _bearer = HTTPBearer(auto_error=False)
@@ -50,3 +54,33 @@ def require_api_key(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     if not secrets.compare_digest(credentials.credentials, _configured_key()):
         raise HTTPException(status_code=401, detail="Invalid API key")
+
+
+def _verify_supabase_jwt(token: str) -> str:
+    """Return the user id (sub) from a Supabase GoTrue access token, or raise 401."""
+    secret = get_settings().supabase_jwt_secret
+    if not secret:
+        raise RuntimeError("SUPABASE_JWT_SECRET is not set — required for the cloud tier")
+    try:
+        claims = jwt.decode(
+            token, secret, algorithms=["HS256"],
+            audience="authenticated", options={"require": ["exp", "sub"]},
+        )
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return claims["sub"]
+
+
+def require_principal(
+    credentials: HTTPAuthorizationCredentials | None = Security(_bearer),
+) -> Principal:
+    """FastAPI dependency: the authenticated caller. Local tier = single user."""
+    if active_backend() == "local":
+        return Principal(user_id="local", org_id="local", access_token="")
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    token = credentials.credentials
+    user_id = _verify_supabase_jwt(token)
+    return Principal(user_id=user_id, org_id=_org_for_or_create(user_id), access_token=token)

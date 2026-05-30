@@ -11,10 +11,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from brain2.api.auth import require_api_key
+from brain2.agent.state import Principal
+from brain2.api.auth import require_principal
 from brain2.store import get_store
 
-router = APIRouter(prefix="/v1", dependencies=[Depends(require_api_key)])
+router = APIRouter(prefix="/v1", dependencies=[Depends(require_principal)])
 
 
 class KBSummary(BaseModel):
@@ -35,7 +36,7 @@ class ProjectsResponse(BaseModel):
 
 
 @router.get("/projects", response_model=ProjectsResponse)
-async def list_projects() -> ProjectsResponse:
+async def list_projects(principal: Principal = Depends(require_principal)) -> ProjectsResponse:
     """List the caller's projects + KBs (cloud scopes to the authenticated org)."""
-    store = get_store()
+    store = get_store(principal.access_token, org_id=principal.org_id)
     return ProjectsResponse(projects=store.list_projects())

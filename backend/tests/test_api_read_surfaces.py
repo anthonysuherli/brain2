@@ -149,3 +149,28 @@ def test_projects_empty_when_nothing_captured(local_api):
     res = client.get("/v1/projects")
     assert res.status_code == 200
     assert res.json()["projects"] == []
+
+
+# --- cloud-tier gating ------------------------------------------------------
+
+
+def test_projects_requires_auth_on_cloud(monkeypatch):
+    """Cloud tier: no Bearer header → 401 from require_principal, before any
+    Supabase call (so no creds/secret needed). Local tier ignores creds entirely;
+    this proves the gate is live on cloud."""
+    from brain2 import config
+    import brain2.store as store_pkg
+
+    config.get_settings.cache_clear()
+    store_pkg._local_stores.clear()
+    monkeypatch.setenv("BRAIN2_BACKEND", "cloud")
+    try:
+        from brain2.api.main import create_app
+
+        client = TestClient(create_app())
+        res = client.get("/v1/projects")
+        assert res.status_code == 401
+    finally:
+        monkeypatch.delenv("BRAIN2_BACKEND", raising=False)
+        config.get_settings.cache_clear()
+        store_pkg._local_stores.clear()
