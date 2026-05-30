@@ -22,7 +22,11 @@ class _Q:
         # The node existence probe filters on both type and label; return empty
         # for it so upsert_kg_nodes takes the INSERT branch (exercise write path).
         existence_probe = {"type", "label"}.issubset(self._cols)
-        rows = [] if existence_probe else [{"id": "n1"}]
+        # Carry edge endpoints so get_kg_subgraph's seeded neighbour-expansion
+        # loop (e["source_node_id"]/["target_node_id"]) doesn't KeyError.
+        rows = [] if existence_probe else [
+            {"id": "n1", "source_node_id": "n1", "target_node_id": "n2"}
+        ]
         class R:
             data = rows
             count = 0
@@ -66,6 +70,18 @@ def test_get_kg_subgraph_unseeded_filters_by_org(monkeypatch):
     sink, _ = _patch(monkeypatch)
     sup.SupabaseStore(access_token="t", org_id="org-X").get_kg_subgraph("kb-1")
     assert ("org_id", "org-X") in sink
+
+
+def test_get_kg_subgraph_seeded_filters_by_org(monkeypatch):
+    # Highest-risk path: the seeded branch fetches nodes purely by id
+    # (.in_("id", wanted)) with no kb_id filter, so the org guard is the only
+    # thing preventing cross-org node leakage. Assert it's applied to BOTH the
+    # seeded edges query and the by-id nodes query.
+    sink, _ = _patch(monkeypatch)
+    sup.SupabaseStore(access_token="t", org_id="org-X").get_kg_subgraph(
+        "kb-1", seed_node_ids=["n1"]
+    )
+    assert sink.count(("org_id", "org-X")) >= 2
 
 
 async def test_upsert_kg_nodes_writes_store_org(monkeypatch):
