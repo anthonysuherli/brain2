@@ -1,0 +1,54 @@
+name: Brain2
+options:
+  bundleIdPrefix: dev.brain2
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""   # set your team for device builds / Sign in with Apple
+
+targets:
+  Brain2:
+    type: application
+    platform: iOS
+    sources:
+      - path: Brain2
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.brain2.app
+        INFOPLIST_FILE: Brain2/Info.plist
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_PREVIEWS: YES
+    entitlements:
+      path: Brain2/Brain2.entitlements
+      properties:
+        com.apple.developer.applesignin:
+          - Default
+
+  Brain2Tests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Brain2Tests
+    dependencies:
+      - target: Brain2
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.brain2.app.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Brain2:
+    build:
+      targets:
+        Brain2: all
+        Brain2Tests: [test]
+    test:
+      targets:
+        - Brain2Tests
