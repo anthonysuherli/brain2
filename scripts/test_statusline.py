@@ -71,19 +71,19 @@ def test_compute_drift_identical():
 def test_compute_drift_files_entered():
     captured = {"a.py"}
     current  = {"a.py", "b.py", "c.py"}  # 2 new files
-    moved, commits = sl.compute_drift(captured, current, 0)
+    moved, _ = sl.compute_drift(captured, current, 0)
     assert moved == 2
 
 
 def test_compute_drift_files_left():
     captured = {"a.py", "b.py", "c.py"}
     current  = {"a.py"}  # 2 files left the dirty set
-    moved, commits = sl.compute_drift(captured, current, 0)
+    moved, _ = sl.compute_drift(captured, current, 0)
     assert moved == 2
 
 
 def test_compute_drift_commits():
-    moved, commits = sl.compute_drift(set(), set(), 3)
+    _, commits = sl.compute_drift(set(), set(), 3)
     assert commits == 3
 
 
