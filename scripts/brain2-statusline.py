@@ -72,6 +72,40 @@ def parse_diff_stat_block(content: str | None) -> set:
     return paths
 
 
+# ── drift & state ────────────────────────────────────────────────────────────
+DRIFT_FILES_WARN = 2        # ≥N files moved in/out of changed-set → drifted
+STALE_AGE        = 30 * 60  # 30 min: boundary between fresh (green) and dim
+IDLE_AGE         = 24 * 3600  # 1 day: quiet idle threshold
+
+
+def compute_drift(
+    captured_files: set, current_files: set, commits_since: int
+) -> tuple[int, int]:
+    """Return (moved_file_count, commits_since)."""
+    moved = len(captured_files.symmetric_difference(current_files))
+    return moved, commits_since
+
+
+def classify(
+    snapshot: dict | None,
+    age_secs: float,
+    moved: int,
+    commits_since: int,
+) -> str:
+    """Return one of: NO_CAPTURE, DRIFTED, IDLE, FRESH.
+
+    Priority: NO_CAPTURE > DRIFTED > IDLE > FRESH
+    DRIFTED beats IDLE — advancing but old is drifted, not idle.
+    """
+    if snapshot is None:
+        return "NO_CAPTURE"
+    if commits_since >= 1 or moved >= DRIFT_FILES_WARN:
+        return "DRIFTED"
+    if age_secs >= IDLE_AGE:
+        return "IDLE"
+    return "FRESH"
+
+
 # ── git helpers ─────────────────────────────────────────────────────────────
 def git(cwd: str, *args: str) -> str:
     try:
