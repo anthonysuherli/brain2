@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""brain2 branch/worktree statusline.
+"""brain2 resume-cue statusline.
 
-Renders, under the Claude Code prompt box, the live feature being worked on per
-git worktree (or per local branch). Each entry's "feature" is the latest captured
-hypothesis pulled from the brain2 session KB.
+Renders two lines under the Claude Code prompt:
+  Line 1 — 🧠 {project} ▶ {branch}  "{hypothesis}"
+  Line 2 — state-adaptive trust bar: verdict · age · drift glyphs · action
 
-Source of truth follows the active tier (same selection rule as the engine):
-  * cloud  — query Supabase via PostgREST (creds from backend/.env). Cached to a
-             temp file with a short TTL so we don't hit the network every render.
-  * local  — query ~/.brain2/brain.db (SQLite, local tier).
-Tier is cloud iff Supabase creds are present and BRAIN2_BACKEND != "local".
+Four states: NO_CAPTURE, FRESH, DRIFTED, IDLE.
+Drift = files moved in/out of dirty set + commits since capture.
+Source of truth: local SQLite (~/.brain2/brain.db) or Supabase (cloud tier).
+
+Legacy portfolio view: BRAIN2_STATUSLINE=portfolio
 
 Wire it in settings.json:
 
@@ -18,10 +18,8 @@ Wire it in settings.json:
       "command": "python3 /Users/suherli/Repositories/brain2/scripts/brain2-statusline.py"
     }
 
-Contract: read-only, fast, and never fails — on any error it degrades to just the
-current branch (or nothing) and exits 0, because a statusline must never break the
-prompt. Mapping matches brain2 capture convention: project = repo dir basename,
-kb = git branch.
+Contract: read-only, fast, never fails — degrades gracefully at every level,
+always exits 0. A statusline must never break the prompt.
 """
 from __future__ import annotations
 
