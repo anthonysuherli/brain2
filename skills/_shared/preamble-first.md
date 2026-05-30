@@ -19,7 +19,7 @@ Every operation begins by **tapping the session KB on the user's intent** *befor
 doing its main work, so prior context directs what you do next instead of acting
 blind.
 
-1. **Tap.** Call `mcp__brain2__brain2_resume(project, kb, query=<the op's prompt /
+1. **Tap.** Call `mcp__plugin_brain2_brain2__brain2_resume(project, kb, query=<the op's prompt /
    topic>)`. It returns `{banner, preamble, coverage, project, kb}` — the brain2
    wordmark, the XML `<preamble>` (synopsis + most-relevant snapshots/findings),
    and the coverage band (`rich` / `sparse` / `gap`) for the query. For ops with no

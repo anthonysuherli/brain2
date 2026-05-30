@@ -12,7 +12,7 @@ the KB is thin and want to fill it.
 ## Step 0 — Resolve target + tap
 
 Follow [`../_shared/preamble-first.md`](../_shared/preamble-first.md): resolve
-`project`/`kb` from git, then `mcp__brain2__brain2_resume(project, kb, query=<the
+`project`/`kb` from git, then `mcp__plugin_brain2_brain2__brain2_resume(project, kb, query=<the
 topic>)` to confirm the gap is real and to **target the prompt at the thin areas**
 rather than re-fetching what's already known. Show the resume card.
 
@@ -26,7 +26,7 @@ the config default apply.
 ## Step 2 — Run (blocking)
 
 ```
-mcp__brain2__brain2_explore(project, kb, prompt=<focused prompt>, max_findings?)
+mcp__plugin_brain2_brain2__brain2_explore(project, kb, prompt=<focused prompt>, max_findings?)
 ```
 
 This **blocks 1–3 minutes** (plan→search→crawl→extract→merge). Tell the user it's
@@ -36,6 +36,6 @@ synopsis rebuild is scheduled automatically.
 ## Step 3 — Report + re-ground
 
 State how many findings were persisted. Then re-tap with
-`mcp__brain2__brain2_resume(project, kb, query=<topic>)` to show the now-richer card
+`mcp__plugin_brain2_brain2__brain2_resume(project, kb, query=<topic>)` to show the now-richer card
 and answer whatever prompted the explore. The next `/brain2:resume` will reflect the
 new knowledge.

@@ -12,7 +12,7 @@ thin on it, fill the gap online *before* answering. One skill, three moves:
 ## Step 1 — Ground
 
 Follow [`../_shared/preamble-first.md`](../_shared/preamble-first.md): resolve
-`project`/`kb` from git, then `mcp__brain2__brain2_resume(project, kb, query=<the
+`project`/`kb` from git, then `mcp__plugin_brain2_brain2__brain2_resume(project, kb, query=<the
 user's question>)`. Show the banner + resume card. Note the `coverage` band.
 
 ## Step 2 — Grow (conditional)
@@ -24,7 +24,7 @@ Branch on `coverage` for the question:
   faithful answer. If yes, run a **narrow** `/brain2:explore` (see
   [`../explore/SKILL.md`](../explore/SKILL.md)) targeting only the thin slice; if
   no, answer from what's there and flag the soft spot.
-- **gap** → nothing to ground on. Either run `mcp__brain2__brain2_explore(project,
+- **gap** → nothing to ground on. Either run `mcp__plugin_brain2_brain2__brain2_explore(project,
   kb, prompt=<question>)` to gap-fill (blocks 1–3 min, then re-tap), or, if the
   user wants a fast answer, say the KB is empty on this and answer from general
   knowledge with that caveat.

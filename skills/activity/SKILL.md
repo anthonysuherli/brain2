@@ -14,7 +14,7 @@ The graph's ontology: **repo, branch, file, session, task** nodes, related by
 
 ## Step 1 — Query the graph
 
-Call `mcp__brain2__brain2_activity`:
+Call `mcp__plugin_brain2_brain2__brain2_activity`:
 
 - A natural-language `query` seeds a **semantic subgraph** ("what touches the
   store layer", "the KG work"). Omit it for the whole (capped) graph.

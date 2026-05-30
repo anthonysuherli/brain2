@@ -12,7 +12,7 @@ into THIS conversation so context recovery takes 30 seconds, not 9.5 minutes.
 
 Follow [`../_shared/preamble-first.md`](../_shared/preamble-first.md):
 `project` = git repo basename, `kb` = git branch. Call
-`mcp__brain2__brain2_resume(project, kb, query)` with `query` = whatever the user
+`mcp__plugin_brain2_brain2__brain2_resume(project, kb, query)` with `query` = whatever the user
 is trying to reorient toward (or omit for the synopsis-only spine).
 
 ## Step 1 — Lead with the hypothesis

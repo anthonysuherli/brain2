@@ -43,7 +43,7 @@ If the user gave intent ("I'm tracking down the auth race"), use it verbatim as
 Then call:
 
 ```
-mcp__brain2__brain2_capture(
+mcp__plugin_brain2_brain2__brain2_capture(
   project, kb, trigger="manual", captured_at=<iso>,
   branch, git_diff_stat, cursor_file?, cursor_line?, open_files?,
   hypothesis=<the one-liner>, project_path=<repo path>
