@@ -258,3 +258,50 @@ def test_render_line2_idle_no_echo_when_fits():
     line = _strip(sl.render_line2("IDLE", age_secs=90000, moved=0, commits=0,
                                    hypothesis="refactor adapter", hyp_fits=True, utf8=False))
     assert "refactor adapter" not in line
+
+
+# ── live_diff_files + commits_since_capture (integration) ─────────────────
+import subprocess
+import pathlib as _pathlib
+
+
+def _make_repo(tmp: _pathlib.Path) -> _pathlib.Path:
+    """Create a minimal git repo in tmp with one initial commit."""
+    subprocess.run(["git", "init", str(tmp)], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(tmp), "config", "user.email", "test@test.com"],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(tmp), "config", "user.name", "Test"],
+                   check=True, capture_output=True)
+    (tmp / "README.md").write_text("hi")
+    subprocess.run(["git", "-C", str(tmp), "add", "."], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(tmp), "commit", "-m", "init"],
+                   check=True, capture_output=True)
+    return tmp
+
+
+def test_live_diff_files_empty(tmp_path):
+    repo = _make_repo(tmp_path)
+    result = sl.live_diff_files(str(repo))
+    assert result == set()
+
+
+def test_live_diff_files_dirty(tmp_path):
+    repo = _make_repo(tmp_path)
+    (repo / "foo.py").write_text("x = 1")
+    result = sl.live_diff_files(str(repo))
+    assert "foo.py" in result
+
+
+def test_commits_since_capture_zero(tmp_path):
+    from datetime import datetime, timezone
+    repo = _make_repo(tmp_path)
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    count = sl.commits_since_capture(str(repo), now_iso)
+    assert count == 0
+
+
+def test_commits_since_capture_nonzero(tmp_path):
+    repo = _make_repo(tmp_path)
+    past_iso = "2000-01-01T00:00:00Z"
+    count = sl.commits_since_capture(str(repo), past_iso)
+    assert count >= 1  # at least the "init" commit

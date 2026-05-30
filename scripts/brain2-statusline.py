@@ -194,6 +194,45 @@ def git(cwd: str, *args: str) -> str:
         return ""
 
 
+_STATUS_PATH_RE = re.compile(r"^.{2} (.+)$")  # " XY path" from git status --short
+
+
+def live_diff_files(cwd: str) -> set:
+    """Return the set of files currently dirty (modified, staged, or untracked)."""
+    raw = git(cwd, "status", "--short")
+    if not raw:
+        return set()
+    paths = set()
+    for line in raw.splitlines():
+        m = _STATUS_PATH_RE.match(line)
+        if m:
+            paths.add(m.group(1).strip())
+    return paths
+
+
+def commits_since_capture(cwd: str, captured_at: str) -> int:
+    """Return the number of commits on HEAD strictly after captured_at (ISO 8601)."""
+    raw = git(cwd, "log", "--format=%aI")
+    if not raw:
+        return 0
+    try:
+        dt_captured = datetime.fromisoformat(captured_at.replace("Z", "+00:00"))
+    except Exception:
+        return 0
+    count = 0
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            dt_commit = datetime.fromisoformat(line)
+            if dt_commit > dt_captured:
+                count += 1
+        except Exception:
+            pass
+    return count
+
+
 def worktrees(cwd: str):
     raw = git(cwd, "worktree", "list", "--porcelain")
     if not raw:
