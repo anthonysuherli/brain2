@@ -28,16 +28,54 @@ class ResumeResponse(BaseModel):
     activity: list[dict] = []
 
 
-@router.get("/resume/{project}/{kb}", response_model=ResumeResponse)
+class ResumeSnapshot(BaseModel):
+    id: str
+    title: str
+    captured_at: str
+
+
+class SynopsisEntry(BaseModel):
+    topic: str
+    gloss: str
+
+
+class ResumeCardJSON(BaseModel):
+    """Structured resume card for native clients (the iOS app).
+
+    Mirrors the data the HTML card assembles, but as JSON so a SwiftUI view can
+    lay it out natively instead of rendering a foreign webview. `hypothesis` and
+    `snapshots` come straight from the latest captured snapshots (not from
+    query-banded preamble findings), so they're populated even when the caller
+    passes no `query`.
+    """
+
+    coverage: str
+    project: str
+    kb: str
+    snapshot_count: int
+    hypothesis: str | None = None
+    snapshots: list[ResumeSnapshot] = []
+    synopsis: list[SynopsisEntry] = []
+    activity: list[dict] = []
+    preamble: str
+
+
+# Most-recent snapshots surfaced in the native card's timeline.
+_JSON_SNAPSHOT_LIMIT = 5
+
+
+@router.get("/resume/{project}/{kb}", response_model=None)
 async def resume(
     project: str,
     kb: str,
     query: str | None = Query(default=None, description="Current context hint"),
-) -> ResumeResponse:
+    format: str = Query(default="html", description="'html' (webview) or 'json' (native)"),
+) -> ResumeResponse | ResumeCardJSON:
     """Tap the KB and return the 30-second resume card.
 
-    The VS Code extension calls this on focus-regain. `card_html` is rendered
-    into the webview panel; `preamble` is the raw XML for Claude Code MCP use.
+    `format=html` (default) returns the VS Code webview card in `card_html`;
+    `format=json` returns the same content as structured fields for native
+    clients. `preamble` (raw XML, for Claude Code MCP use) is in both.
     """
     ctx = resolve_tenant(project, kb, create=False)
     store = get_store(ctx.access_token)
@@ -52,6 +90,18 @@ async def resume(
 
     # Cross-repo activity rollup (empty before any capture); newest-first.
     rollup = activity_rollup()
+
+    if format == "json":
+        return _assemble_json(
+            store,
+            ctx.kb_id,
+            coverage=coverage,
+            preamble_xml=preamble_xml,
+            project=project,
+            kb=kb,
+            snapshot_count=snapshot_count,
+            activity=rollup,
+        )
 
     card_html = _render_card(
         preamble_xml,
@@ -70,6 +120,62 @@ async def resume(
         snapshot_count=snapshot_count,
         activity=rollup,
     )
+
+
+# ---------------------------------------------------------------------------
+# JSON card assembly (native clients)
+# ---------------------------------------------------------------------------
+
+def _assemble_json(
+    store,
+    kb_id: str,
+    *,
+    coverage: str,
+    preamble_xml: str,
+    project: str,
+    kb: str,
+    snapshot_count: int,
+    activity: list[dict],
+) -> ResumeCardJSON:
+    """Build the native card from the store directly.
+
+    Unlike the HTML renderer (which parses query-banded preamble findings), this
+    reads the latest snapshots and the synopsis spine straight from the store, so
+    the hypothesis and timeline are present regardless of `query`.
+    """
+    snaps = store.list_findings(kb_id, category="snapshot", limit=_JSON_SNAPSHOT_LIMIT)[
+        "findings"
+    ]
+    snapshots = [
+        ResumeSnapshot(id=f["id"], title=f.get("title") or "", captured_at=f.get("created_at") or "")
+        for f in snaps
+    ]
+    hypothesis = _hypothesis_from_title(snaps[0].get("title") or "") if snaps else None
+
+    syn_row = store.load_synopsis(kb_id) or {}
+    synopsis = [
+        SynopsisEntry(topic=str(e.get("topic", "")), gloss=str(e.get("gloss", "")))
+        for e in (syn_row.get("content") or [])
+    ]
+
+    return ResumeCardJSON(
+        coverage=coverage,
+        project=project,
+        kb=kb,
+        snapshot_count=snapshot_count,
+        hypothesis=hypothesis,
+        snapshots=snapshots,
+        synopsis=synopsis,
+        activity=activity,
+        preamble=preamble_xml,
+    )
+
+
+def _hypothesis_from_title(title: str) -> str | None:
+    """A snapshot's title is the hypothesis unless it's a generic auto-label."""
+    if title and not title.startswith("Snapshot ") and not title.startswith("Working on "):
+        return title
+    return None
 
 
 # ---------------------------------------------------------------------------

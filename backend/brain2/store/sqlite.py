@@ -425,6 +425,33 @@ class SQLiteStore:
             create,
         )
 
+    def list_projects(self) -> list[dict]:
+        """All local projects + KBs with snapshot last-activity/count (newest KB rows last)."""
+        projects: list[dict] = []
+        prows = self._conn.execute(
+            "SELECT id, name FROM projects WHERE org_id = ? ORDER BY created_at;", (_ORG,)
+        ).fetchall()
+        for p in prows:
+            kbs: list[dict] = []
+            krows = self._conn.execute(
+                "SELECT id, name FROM kbs WHERE org_id = ? AND project_id = ? ORDER BY created_at;",
+                (_ORG, p["id"]),
+            ).fetchall()
+            for k in krows:
+                agg = self._conn.execute(
+                    "SELECT COUNT(*) AS n, MAX(created_at) AS last FROM findings "
+                    "WHERE kb_id = ? AND category = 'snapshot';",
+                    (k["id"],),
+                ).fetchone()
+                kbs.append({
+                    "kb": k["name"],
+                    "kb_id": k["id"],
+                    "snapshot_count": int(agg["n"]),
+                    "last_activity": agg["last"],
+                })
+            projects.append({"project": p["name"], "project_id": p["id"], "kbs": kbs})
+        return projects
+
     def _find_or_create(
         self, table: str, match: dict[str, str], insert: dict[str, object], create: bool
     ) -> str:

@@ -90,6 +90,16 @@ class Store(Protocol):
         """Resolve the named KB within (org_id, project_id) → kb_id."""
         ...
 
+    def list_projects(self) -> list[dict]:
+        """All of the caller's projects with their KBs, for client discovery.
+
+        Returns ``[{project, project_id, kbs: [{kb, kb_id, last_activity,
+        snapshot_count}]}]``. ``last_activity`` is the newest snapshot's timestamp
+        (or None), ``snapshot_count`` the exact snapshot count. The native client's
+        home screen reads this — unlike the editor, the phone doesn't already know
+        its project + branch. Cloud scopes to the authenticated user's org."""
+        ...
+
     # --- activity knowledge graph --------------------------------------------
     # Nodes/edges live in their own per-KB namespace (`kb_id` = the reserved
     # activity KB). Dedupe is by exact ``(type, normalized label)`` so a repo or

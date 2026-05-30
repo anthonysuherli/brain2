@@ -242,6 +242,43 @@ class SupabaseStore:
             create,
         )
 
+    def list_projects(self) -> list[dict]:
+        """All of the authenticated user's projects + KBs, with snapshot rollups.
+
+        Scopes to the user's org via the same GoTrue login + `_org_for` lookup as
+        `resolve_project`, then service-client reads with explicit `org_id`
+        scoping (the load-bearing tenancy invariant). One count="exact" snapshot
+        query per KB yields both `snapshot_count` and `last_activity`."""
+        user_id, _ = _login()
+        org_id = _org_for(user_id)
+        sb = service_client()
+        prows = (
+            sb.table("projects").select("id, name").eq("org_id", org_id)
+            .order("created_at").execute()
+        ).data or []
+        projects: list[dict] = []
+        for p in prows:
+            krows = (
+                sb.table("kbs").select("id, name")
+                .eq("org_id", org_id).eq("project_id", p["id"])
+                .order("created_at").execute()
+            ).data or []
+            kbs: list[dict] = []
+            for k in krows:
+                res = (
+                    sb.table("findings").select("created_at", count="exact")
+                    .eq("kb_id", k["id"]).eq("category", "snapshot")
+                    .order("created_at", desc=True).limit(1).execute()
+                )
+                kbs.append({
+                    "kb": k["name"],
+                    "kb_id": k["id"],
+                    "snapshot_count": res.count or 0,
+                    "last_activity": res.data[0]["created_at"] if res.data else None,
+                })
+            projects.append({"project": p["name"], "project_id": p["id"], "kbs": kbs})
+        return projects
+
     # --- activity knowledge graph --------------------------------------------
     # Reuses divergence's existing `kg_nodes`/`kg_edges` tables and the
     # `match_kg_nodes` RPC (migration 0003) — same instance, same schema. Writes
