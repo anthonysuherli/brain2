@@ -157,3 +157,104 @@ def test_classify_stale_but_not_idle_is_fresh():
         commits_since=0,
     )
     assert state == "FRESH"
+
+
+# ── render_line1 ──────────────────────────────────────────────────────────
+
+def _strip(s):
+    """Strip ANSI codes for assertion."""
+    import re
+    return re.sub(r"\033\[[0-9;]*m", "", s)
+
+
+def test_render_line1_with_hypothesis():
+    line, _ = sl.render_line1("brain2", "dev", "fix the thing", width=80)
+    line = _strip(line)
+    assert "🧠 brain2" in line
+    assert "▶ dev" in line
+    assert '"fix the thing"' in line
+
+
+def test_render_line1_no_hypothesis():
+    line, _ = sl.render_line1("brain2", "dev", None, width=80)
+    line = _strip(line)
+    assert "▶ dev" in line
+    assert '"' not in line  # no empty quotes
+
+
+def test_render_line1_truncates_hypothesis():
+    long_hyp = "x" * 100
+    line, hyp_fits = sl.render_line1("brain2", "dev", long_hyp, width=60)
+    line = _strip(line)
+    assert "…" in line
+    assert hyp_fits is False
+
+
+# ── render_line2 ──────────────────────────────────────────────────────────
+
+def test_render_line2_no_capture():
+    line = _strip(sl.render_line2("NO_CAPTURE", age_secs=0, moved=0, commits=0,
+                                   hypothesis=None, hyp_fits=True, utf8=False))
+    assert "no capture" in line
+    assert "/brain2:capture" in line
+
+
+def test_render_line2_fresh_no_action():
+    line = _strip(sl.render_line2("FRESH", age_secs=60, moved=0, commits=0,
+                                   hypothesis="x", hyp_fits=True, utf8=False))
+    assert "fresh" in line
+    assert "/resume" not in line
+    assert "/brain2:capture" not in line
+
+
+def test_render_line2_fresh_shows_age():
+    line = _strip(sl.render_line2("FRESH", age_secs=300, moved=0, commits=0,
+                                   hypothesis="x", hyp_fits=True, utf8=False))
+    assert "5m" in line
+
+
+def test_render_line2_drifted_has_action():
+    line = _strip(sl.render_line2("DRIFTED", age_secs=1200, moved=3, commits=1,
+                                   hypothesis="x", hyp_fits=True, utf8=False))
+    assert "drifted" in line
+    assert "/resume" in line
+
+
+def test_render_line2_drifted_ascii_glyphs():
+    line = _strip(sl.render_line2("DRIFTED", age_secs=600, moved=3, commits=1,
+                                   hypothesis="x", hyp_fits=True, utf8=False))
+    assert "f3" in line   # ASCII fallback for ╓3
+    assert "c1" in line   # ASCII fallback for ⎇1
+
+
+def test_render_line2_drifted_utf8_glyphs():
+    line = _strip(sl.render_line2("DRIFTED", age_secs=600, moved=3, commits=1,
+                                   hypothesis="x", hyp_fits=True, utf8=True))
+    assert "╓3" in line
+    assert "⎇1" in line
+
+
+def test_render_line2_drifted_omits_zero_glyphs():
+    line = _strip(sl.render_line2("DRIFTED", age_secs=600, moved=0, commits=1,
+                                   hypothesis="x", hyp_fits=True, utf8=True))
+    assert "╓" not in line  # 0 files moved — omit
+
+
+def test_render_line2_idle_quiet():
+    line = _strip(sl.render_line2("IDLE", age_secs=90000, moved=0, commits=0,
+                                   hypothesis="x", hyp_fits=True, utf8=False))
+    assert "idle" in line
+    assert "/resume" not in line
+    assert "/brain2:capture" not in line
+
+
+def test_render_line2_idle_echoes_hyp_when_truncated():
+    line = _strip(sl.render_line2("IDLE", age_secs=90000, moved=0, commits=0,
+                                   hypothesis="refactor adapter", hyp_fits=False, utf8=False))
+    assert "refactor adapter" in line
+
+
+def test_render_line2_idle_no_echo_when_fits():
+    line = _strip(sl.render_line2("IDLE", age_secs=90000, moved=0, commits=0,
+                                   hypothesis="refactor adapter", hyp_fits=True, utf8=False))
+    assert "refactor adapter" not in line

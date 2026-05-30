@@ -106,6 +106,83 @@ def classify(
     return "FRESH"
 
 
+# ── renderers ────────────────────────────────────────────────────────────────
+
+def _utf8_capable() -> bool:
+    lang = os.environ.get("LANG", "") + os.environ.get("LC_ALL", "") + os.environ.get("LC_CTYPE", "")
+    return "UTF-8" in lang.upper() or "UTF8" in lang.upper()
+
+
+def render_line1(project: str, branch: str, hypothesis: str | None, width: int) -> tuple[str, bool]:
+    """Return (rendered_line1, hyp_fits). hyp_fits=False means hypothesis was truncated."""
+    badge = f"{BOLD}{YELLOW}🧠 {project}{RESET}"
+    branch_part = f"{BOLD}{GREEN}▶ {branch}{RESET}"
+    prefix = f"{badge}  {branch_part}"
+    prefix_plain_len = len(f"🧠 {project}  ▶ {branch}")
+
+    if not hypothesis:
+        return prefix, True
+
+    budget = max(20, min(60, width - prefix_plain_len - 4))  # 4 = 2 spaces + 2 quotes
+    truncated = len(hypothesis) > budget
+    hyp_text = (hypothesis[:budget - 1] + "…") if truncated else hypothesis
+    hyp_part = f'  {DIM}"{hyp_text}"{RESET}'
+    return prefix + hyp_part, not truncated
+
+
+def render_line2(
+    state: str,
+    age_secs: float,
+    moved: int,
+    commits: int,
+    hypothesis: str | None,
+    hyp_fits: bool,
+    utf8: bool,
+) -> str:
+    """Return the trust-bar string for line 2."""
+    age_str = age_from_secs(age_secs) if age_secs > 0 else ""
+
+    if state == "NO_CAPTURE":
+        return f"   {YELLOW}⚡{RESET} no capture yet · {DIM}/brain2:capture to anchor{RESET}"
+
+    if state == "FRESH":
+        age_part = f" · captured {age_str} ago" if age_str else ""
+        moved_glyph = ""
+        if moved > 0:
+            g = f"╓{moved}" if utf8 else f"f{moved}"
+            moved_glyph = f" · {DIM}{g}{RESET}"
+        color = GREEN if age_secs < STALE_AGE else GREY
+        return f"   {color}✓{RESET} fresh{age_part}{moved_glyph}"
+
+    if state == "DRIFTED":
+        age_part = f" · {age_str} ago" if age_str else ""
+        glyphs = []
+        if moved > 0:
+            glyphs.append(f"╓{moved}" if utf8 else f"f{moved}")
+        if commits > 0:
+            glyphs.append(f"⎇{commits}" if utf8 else f"c{commits}")
+        glyph_part = f" · {DIM}{' '.join(glyphs)}{RESET}" if glyphs else ""
+        action = f" · {DIM}/resume to rebuild{RESET}"
+        return f"   {YELLOW}⚠{RESET} drifted{age_part}{glyph_part}{action}"
+
+    # IDLE
+    age_label = f"idle {age_str}" if age_str else "idle"
+    echo = ""
+    if hypothesis and not hyp_fits:
+        short = truncate(hypothesis, 30)
+        echo = f' · last: {DIM}"{short}"{RESET}'
+    return f"   {GREY}· {age_label}{echo}{RESET}"
+
+
+def age_from_secs(secs: float) -> str:
+    """Human-readable age from seconds (pure, no datetime needed)."""
+    if secs < 3600:
+        return f"{int(secs // 60)}m"
+    if secs < 86400:
+        return f"{int(secs // 3600)}h"
+    return f"{int(secs // 86400)}d"
+
+
 # ── git helpers ─────────────────────────────────────────────────────────────
 def git(cwd: str, *args: str) -> str:
     try:
