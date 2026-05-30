@@ -17,3 +17,4 @@ out/
 .ruff_cache/
 .pytest_cache/
 *.log
+.worktrees/
