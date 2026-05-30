@@ -91,7 +91,7 @@ async def resume(
     )["count"]
 
     # Cross-repo activity rollup (empty before any capture); newest-first.
-    rollup = activity_rollup()
+    rollup = activity_rollup(access_token=principal.access_token, org_id=principal.org_id)
 
     if format == "json":
         return _assemble_json(

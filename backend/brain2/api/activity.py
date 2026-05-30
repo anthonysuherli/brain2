@@ -14,10 +14,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
-from brain2.api.auth import require_api_key
+from brain2.agent.state import Principal
+from brain2.api.auth import require_principal
 from brain2.knowledge_graph.activity import activity_stats, query_activity
 
-router = APIRouter(prefix="/v1/activity", dependencies=[Depends(require_api_key)])
+router = APIRouter(prefix="/v1/activity", dependencies=[Depends(require_principal)])
 
 
 class GraphResponse(BaseModel):
@@ -38,14 +39,15 @@ class StatsResponse(BaseModel):
 async def graph(
     q: str | None = Query(default=None, description="Semantic seed query"),
     repo: str | None = Query(default=None, description="Filter to one repository"),
+    principal: Principal = Depends(require_principal),
 ) -> GraphResponse:
     """Return a slice of the activity graph — semantically seeded by `q`, or the
     whole (capped) graph when `q` is omitted; optionally filtered to one `repo`."""
-    result = await query_activity(q, repo=repo)
+    result = await query_activity(q, repo=repo, access_token=principal.access_token, org_id=principal.org_id)
     return GraphResponse(**result)
 
 
 @router.get("/stats", response_model=StatsResponse)
-async def stats() -> StatsResponse:
+async def stats(principal: Principal = Depends(require_principal)) -> StatsResponse:
     """Graph totals + hotspots (most-touched repos/files/tasks by edge degree)."""
-    return StatsResponse(**activity_stats())
+    return StatsResponse(**activity_stats(access_token=principal.access_token, org_id=principal.org_id))

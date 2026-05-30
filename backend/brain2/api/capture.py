@@ -57,5 +57,5 @@ async def capture(body: SnapshotRequest, principal: Principal = Depends(require_
     )
     ctx = resolve_tenant(body.project, body.kb, create=True, principal=principal)
     finding_id = await persist_snapshot(ctx, snap)
-    schedule_activity_update(snap, finding_id)  # fire-and-forget; best-effort
+    schedule_activity_update(snap, finding_id, access_token=principal.access_token, org_id=principal.org_id)  # fire-and-forget; best-effort
     return CaptureResponse(finding_id=finding_id, coverage="sparse")

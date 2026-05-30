@@ -35,23 +35,23 @@ logger = logging.getLogger(__name__)
 
 # --- tenancy: the reserved activity KB --------------------------------------
 
-def resolve_activity_target(*, create: bool = True) -> tuple[Store, str, str]:
+def resolve_activity_target(*, access_token: str | None = None, org_id: str | None = None, create: bool = True) -> tuple[Store, str, str]:
     """Resolve ``(store, org_id, activity_kb_id)`` for the caller's activity graph.
 
     Goes through the active Store like all tenancy: local returns
     ``org_id="local"``; cloud derives the org from the configured user's login.
     The reserved ``__activity__``/``default`` project+kb is one per org."""
     cfg = get_config().activity
-    store = get_store()
+    store = get_store(access_token, org_id=org_id)
     org_id, project_id = store.resolve_project(cfg.project_name, create=create)
     kb_id = store.resolve_kb(org_id, project_id, cfg.kb_name, create=create)
     return store, org_id, kb_id
 
 
-def _safe_target(*, create: bool) -> tuple[Store, str, str] | None:
+def _safe_target(*, access_token: str | None = None, org_id: str | None = None, create: bool) -> tuple[Store, str, str] | None:
     """Resolve the activity target, or ``None`` if it doesn't exist yet (read path)."""
     try:
-        return resolve_activity_target(create=create)
+        return resolve_activity_target(access_token=access_token, org_id=org_id, create=create)
     except RuntimeError:
         return None
 
@@ -258,11 +258,11 @@ async def _persist(store: Store, org_id: str, kb_id: str, extraction: KGExtracti
 _BG_TASKS: set[asyncio.Task] = set()
 
 
-async def _run_activity_update(snap: WorkspaceSnapshot, finding_id: str) -> None:
+async def _run_activity_update(snap: WorkspaceSnapshot, finding_id: str, *, access_token: str | None = None, org_id: str | None = None) -> None:
     try:
-        store, org_id, kb_id = resolve_activity_target(create=True)
+        store, org_id_r, kb_id = resolve_activity_target(access_token=access_token, org_id=org_id, create=True)
         extraction = await activity_extract(snap, finding_id)
-        result = await _persist(store, org_id, kb_id, extraction)
+        result = await _persist(store, org_id_r, kb_id, extraction)
         logger.info(
             "activity KG: +%s nodes, +%s edges (finding=%s)",
             result["nodes"], result["edges_created"], finding_id,
@@ -271,13 +271,13 @@ async def _run_activity_update(snap: WorkspaceSnapshot, finding_id: str) -> None
         logger.exception("activity KG update failed for finding=%s", finding_id)
 
 
-def schedule_activity_update(snap: WorkspaceSnapshot, finding_id: str) -> None:
+def schedule_activity_update(snap: WorkspaceSnapshot, finding_id: str, *, access_token: str | None = None, org_id: str | None = None) -> None:
     """Fire-and-forget activity-graph append after a capture. No-op when
     ``BRAIN2_ACTIVITY_KG=0``. Holds a strong task ref so it isn't GC'd mid-flight
     (mirrors ``synopsis.schedule_rebuild``)."""
     if os.getenv("BRAIN2_ACTIVITY_KG", "1") == "0":
         return
-    task = asyncio.create_task(_run_activity_update(snap, finding_id))
+    task = asyncio.create_task(_run_activity_update(snap, finding_id, access_token=access_token, org_id=org_id))
     _BG_TASKS.add(task)
     task.add_done_callback(_BG_TASKS.discard)
 
@@ -320,11 +320,11 @@ def _summarize(sub: dict, stats: dict) -> str:
     return "\n".join(lines)
 
 
-async def query_activity(query: str | None = None, *, repo: str | None = None) -> dict:
+async def query_activity(query: str | None = None, *, repo: str | None = None, access_token: str | None = None, org_id: str | None = None) -> dict:
     """Query the activity graph. With `query`, seed a subgraph semantically; else
     return the (capped) whole graph. Optional `repo` filter. Returns
     ``{nodes, edges, summary}``."""
-    store, _org, kb_id = resolve_activity_target(create=True)
+    store, _org, kb_id = resolve_activity_target(access_token=access_token, org_id=org_id, create=True)
     cfg = get_config().activity
     if query:
         embs = await embed_batch([query])
@@ -345,10 +345,10 @@ async def query_activity(query: str | None = None, *, repo: str | None = None) -
     return {"nodes": sub["nodes"], "edges": sub["edges"], "summary": _summarize(sub, store.kg_stats(kb_id))}
 
 
-def activity_rollup(limit: int | None = None) -> list[dict]:
+def activity_rollup(limit: int | None = None, *, access_token: str | None = None, org_id: str | None = None) -> list[dict]:
     """Recent work sessions across all repos, newest first — the resume-card rollup.
     Each entry: ``{repo, branch, captured_at, hypothesis}``. Empty if no activity yet."""
-    t = _safe_target(create=False)
+    t = _safe_target(access_token=access_token, org_id=org_id, create=False)
     if not t:
         return []
     store, _org, kb_id = t
@@ -383,9 +383,9 @@ def _hotspots(sub: dict, *, top_n: int = 8) -> dict:
     return {"repos": _top("repo"), "files": _top("file"), "tasks": _top("task")}
 
 
-def activity_stats() -> dict:
+def activity_stats(*, access_token: str | None = None, org_id: str | None = None) -> dict:
     """Graph totals + hotspots (most-touched repos/files/tasks). Empty if no activity."""
-    t = _safe_target(create=False)
+    t = _safe_target(access_token=access_token, org_id=org_id, create=False)
     if not t:
         return {"node_count": 0, "edge_count": 0, "by_type": {}, "by_relation": {},
                 "hotspots": {"repos": [], "files": [], "tasks": []}}
