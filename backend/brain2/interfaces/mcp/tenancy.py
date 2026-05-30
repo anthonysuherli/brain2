@@ -25,7 +25,7 @@ import uuid
 
 from supabase import Client, create_client
 
-from brain2.agent.state import TenantContext
+from brain2.agent.state import Principal, TenantContext
 from brain2.clients.supabase import service_client
 from brain2.config import get_settings
 
@@ -98,48 +98,39 @@ def resolve_project_id(project: str, *, create: bool = False) -> tuple[str, str]
     return get_store().resolve_project(project, create=create)
 
 
-def resolve_tenant(project: str, kb: str, *, create: bool = True) -> TenantContext:
+def resolve_tenant(
+    project: str, kb: str, *, principal: "Principal | None" = None, create: bool = True
+) -> TenantContext:
     """Resolve a TenantContext by name, creating project/KB on demand.
 
-    **Backend fork.** Tenancy resolution goes through the active `Store`
-    (`resolve_project` → (org_id, project_id), then `resolve_kb` → kb_id), so the
-    local SQLite and cloud Supabase tiers share one shape. The only tier-specific
-    step is *identity*: the cloud tier does a GoTrue login to obtain a real
-    user_id + JWT (RLS scope) before resolving; the local tier is single-user and
-    has no auth, so user_id="local", access_token="" (org_id="local" comes back
-    from the store). `TenantContext`'s shape is identical on both paths.
-
-    Two v0 assumptions on the cloud path, documented as known gaps:
-      * name-resolution is single-flight — `projects`/`kbs` have no unique
-        constraint on (org_id[, project_id], name), so concurrent first-touch
-        of the same name can create duplicates; later resolves pick limit(1).
-      * a fresh GoTrue login + org lookup runs on every call (no caching).
-        Caching must add token expiry/refresh in the same change.
+    Identity fork:
+      * local tier — single user, no auth (user_id="local", token="").
+      * cloud + ``principal`` given — the request's verified identity drives
+        tenancy; the principal's org_id is injected into the store so it does
+        NOT re-login. This is the per-user request path.
+      * cloud + no principal — legacy path: the configured MCP user login. Used
+        by the in-process MCP server (single configured identity).
+    `TenantContext`'s shape is identical on all paths.
     """
     from brain2.store import active_backend, get_store
 
-    store = get_store()
     if active_backend() == "local":
-        # Single-user local tier: no GoTrue login. The store returns org_id="local".
-        user_id, token = "local", ""
+        store = get_store()
         org_id, project_id = store.resolve_project(project, create=create)
         kb_id = store.resolve_kb(org_id, project_id, kb, create=create)
-    else:
-        # Cloud tier: real GoTrue identity feeds RLS-scoped finding ops.
-        # KNOWN FOLLOW-UP (cloud-only, non-blocking): this logs into GoTrue once
-        # here for the token, and SupabaseStore.resolve_project logs in AGAIN
-        # internally (+ a second org lookup). Same user/org, so it's a latency
-        # regression, not a correctness bug. Fix alongside the login-caching work
-        # noted above by threading the resolved (user_id, org_id) into the store.
-        user_id, token = _login()
+        return TenantContext("local", org_id, project_id, kb_id, str(uuid.uuid4()), "")
+
+    if principal is not None:
+        store = get_store(principal.access_token, org_id=principal.org_id)
         org_id, project_id = store.resolve_project(project, create=create)
         kb_id = store.resolve_kb(org_id, project_id, kb, create=create)
-    # thread_id is unused on this path (only POST /agent writes chat_messages).
-    return TenantContext(
-        user_id=user_id,
-        org_id=org_id,
-        project_id=project_id,
-        kb_id=kb_id,
-        thread_id=str(uuid.uuid4()),
-        access_token=token,
-    )
+        return TenantContext(
+            principal.user_id, org_id, project_id, kb_id, str(uuid.uuid4()), principal.access_token
+        )
+
+    # Legacy cloud path: configured MCP user login (unchanged behavior).
+    user_id, token = _login()
+    store = get_store(token)
+    org_id, project_id = store.resolve_project(project, create=create)
+    kb_id = store.resolve_kb(org_id, project_id, kb, create=create)
+    return TenantContext(user_id, org_id, project_id, kb_id, str(uuid.uuid4()), token)
