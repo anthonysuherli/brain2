@@ -13,15 +13,16 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
+from brain2.agent.state import Principal
 from brain2.agent.synopsis import schedule_rebuild
-from brain2.api.auth import require_api_key
+from brain2.api.auth import require_principal
 from brain2.clients.embeddings import embed_batch
 from brain2.config import get_config
 from brain2.exploration import run_exploration
 from brain2.interfaces.mcp.tenancy import resolve_tenant
 from brain2.store import get_store
 
-router = APIRouter(prefix="/v1", dependencies=[Depends(require_api_key)])
+router = APIRouter(prefix="/v1", dependencies=[Depends(require_principal)])
 logger = logging.getLogger(__name__)
 
 
@@ -52,6 +53,7 @@ async def start_explore(
     kb: str,
     body: ExploreRequest,
     background_tasks: BackgroundTasks,
+    principal: Principal = Depends(require_principal),
 ) -> ExploreStarted:
     """Start the research pipeline for `prompt` and return an exploration_id.
 
@@ -59,11 +61,13 @@ async def start_explore(
     Poll GET /v1/explore/{id}/status for progress and results. When the
     coverage band on a resume card is `gap`, this is the action to take.
     """
-    ctx = resolve_tenant(project, kb, create=True)
+    ctx = resolve_tenant(project, kb, create=True, principal=principal)
     cfg = get_config().exploration
     max_findings = min(body.max_findings or cfg.default_max_findings, cfg.max_findings)
 
-    exploration_id = get_store().create_exploration(ctx.org_id, ctx.kb_id, body.prompt)
+    exploration_id = get_store(ctx.access_token, org_id=ctx.org_id).create_exploration(
+        ctx.org_id, ctx.kb_id, body.prompt
+    )
 
     background_tasks.add_task(
         _run_pipeline,

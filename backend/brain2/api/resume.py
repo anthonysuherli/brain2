@@ -10,12 +10,13 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from brain2.agent.preamble import select_preamble
-from brain2.api.auth import require_api_key
+from brain2.agent.state import Principal
+from brain2.api.auth import require_principal
 from brain2.interfaces.mcp.tenancy import resolve_tenant
 from brain2.knowledge_graph.activity import activity_rollup
 from brain2.store import get_store
 
-router = APIRouter(prefix="/v1", dependencies=[Depends(require_api_key)])
+router = APIRouter(prefix="/v1", dependencies=[Depends(require_principal)])
 
 
 class ResumeResponse(BaseModel):
@@ -70,6 +71,7 @@ async def resume(
     kb: str,
     query: str | None = Query(default=None, description="Current context hint"),
     format: str = Query(default="html", description="'html' (webview) or 'json' (native)"),
+    principal: Principal = Depends(require_principal),
 ) -> ResumeResponse | ResumeCardJSON:
     """Tap the KB and return the 30-second resume card.
 
@@ -77,8 +79,8 @@ async def resume(
     `format=json` returns the same content as structured fields for native
     clients. `preamble` (raw XML, for Claude Code MCP use) is in both.
     """
-    ctx = resolve_tenant(project, kb, create=False)
-    store = get_store(ctx.access_token)
+    ctx = resolve_tenant(project, kb, create=False, principal=principal)
+    store = get_store(ctx.access_token, org_id=ctx.org_id)
 
     preamble_xml, coverage = await select_preamble(query, store=store, kb_id=ctx.kb_id)
 
