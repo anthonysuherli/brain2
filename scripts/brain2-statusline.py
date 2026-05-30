@@ -52,6 +52,26 @@ GREEN, CYAN, YELLOW, GREY = "\033[32m", "\033[36m", "\033[33m", "\033[90m"
 _HYP_RE = re.compile(r"\*\*Hypothesis\*\*:\s*(.+)", re.IGNORECASE)
 
 
+# ── diff-stat parsing ────────────────────────────────────────────────────────
+_DIFF_BLOCK_RE = re.compile(r"\*\*Git diff stat\*\*:\s*```[^\n]*\n(.*?)```", re.DOTALL)
+_DIFF_PATH_RE  = re.compile(r"^\s+(.+?)\s+\|")  # " path/to/file.py | N ±"
+
+
+def parse_diff_stat_block(content: str | None) -> set:
+    """Return the set of file paths from a snapshot's **Git diff stat** block."""
+    if not content:
+        return set()
+    m = _DIFF_BLOCK_RE.search(content)
+    if not m:
+        return set()
+    paths = set()
+    for line in m.group(1).splitlines():
+        pm = _DIFF_PATH_RE.match(line)
+        if pm:
+            paths.add(pm.group(1).strip())
+    return paths
+
+
 # ── git helpers ─────────────────────────────────────────────────────────────
 def git(cwd: str, *args: str) -> str:
     try:
