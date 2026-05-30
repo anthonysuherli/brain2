@@ -100,9 +100,9 @@ Slash commands from inside any Claude Code session:
 Example: You're in a Claude Code session debugging auth. Type `/brain2:search "how did I set up JWT validation?"` and get an answer from your captured snapshots.
 
 ### iOS companion (read on the go)
-A native SwiftUI app — the read spine. Sign in, browse your cross-repo activity, and 
-read resume cards from your phone. Consumes the same `/v1/projects` + `/v1/resume` + 
-`/v1/activity` API.
+A native SwiftUI app — the read spine. **Sign in with Apple**, browse your cross-repo 
+activity, and read resume cards from your phone. Consumes the same `/v1/projects` + 
+`/v1/resume` + `/v1/activity` API, authenticated per-user (see below).
 
 ## Knowledge engine: portable & accessible
 
@@ -227,7 +227,15 @@ Then use `/brain2:resume`, `/brain2:capture`, etc. in Claude Code.
 
 By default, the knowledge base is keyed by **project** (git repo name) and **kb** 
 (git branch). Override the database path with `BRAIN2_DB_PATH` (local) or set Supabase 
-credentials in `.env` (cloud); the cloud tier reads `BRAIN2_API_KEY` for Bearer auth.
+credentials in `.env` (cloud).
+
+The **cloud tier is multi-user**: each request carries a Supabase GoTrue JWT — 
+obtained via **Sign in with Apple** through `POST /v1/auth/apple` (Supabase verifies 
+the Apple token and provisions the user) and rotated via `POST /v1/auth/refresh`. The 
+backend verifies the JWT against `SUPABASE_JWT_SECRET` and scopes every read/write 
+(findings *and* the activity graph) to the caller's own org via row-level security. 
+`BRAIN2_API_KEY` remains as a service-only key for internal callers. The **local tier** 
+needs no auth (loopback-only, single user).
 
 ## Design principles
 
@@ -241,7 +249,7 @@ credentials in `.env` (cloud); the cloud tier reads `BRAIN2_API_KEY` for Bearer 
 
 See [`CLAUDE.md`](CLAUDE.md) for:
 - Module layout (`brain2/` core engine, fork structure)
-- API surface (`/v1/capture`, `/v1/resume`, `/v1/explore`)
+- API surface (`/v1/capture`, `/v1/resume`, `/v1/explore`, `/v1/auth/apple`)
 - Storage tiers (SQLite vs Supabase)
 - MCP tools and plugin skills
 
@@ -251,5 +259,7 @@ See [`CLAUDE.md`](CLAUDE.md) for:
 - [x] **Claude Code plugin** — slash commands (`/brain2:resume`, etc.)
 - [x] **iOS companion** — native SwiftUI read spine (projects, resume cards, activity)
 - [x] **Storage tiers** — free (SQLite) and paid (Supabase) in one codebase
+- [x] **Multi-user cloud auth (backend)** — per-user Supabase JWT tenancy, per-org isolation, `/v1/auth/apple` + `/v1/auth/refresh`
+- ⬜ **Apple sign-in, end-to-end** — Fly.io deploy + Supabase Apple provider + iOS wiring (designed, in progress)
 - ⬜ **Cross-machine sync** — designed, not yet shipped
 - ⬜ **Team sharing** — designed, not yet shipped

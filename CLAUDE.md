@@ -151,6 +151,16 @@ python -m brain2.interfaces.mcp.server          # add to .claude/settings.json
   a graph failure never breaks a capture. Gates: `BRAIN2_ACTIVITY_KG` (master,
   default on), `BRAIN2_ACTIVITY_LLM` (task pass, default on — off = deterministic
   only). Design: `docs/plans/2026-05-30-activity-kg-design.md`.
+- [x] Multi-user cloud auth (backend) — per-request Supabase GoTrue JWT drives
+  tenancy: `require_principal` verifies the JWT and provisions the org;
+  `resolve_tenant(principal=…)` injects the caller's org/token into the `Store`
+  (no `_login()` on the request path); activity-KG reads/writes are org-scoped
+  (closing the prior service-client RLS bypass). `POST /v1/auth/apple`
+  (Supabase `sign_in_with_id_token`) + `POST /v1/auth/refresh` mint/rotate the
+  session; `BRAIN2_API_KEY` is now service-only; the MCP server keeps the legacy
+  single-configured-user path. Design + plan:
+  `docs/plans/2026-05-30-multiuser-deploy-auth-{design,plan}.md`. Remaining
+  (external): Fly.io deploy, Supabase Apple provider config, iOS sign-in wiring.
 
 ## API surface
 
