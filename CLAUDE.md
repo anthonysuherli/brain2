@@ -78,6 +78,18 @@ never touches a storage client directly — it calls `store = get_store()`.
 - **Auth fork** — `api/auth.py::require_api_key` is a no-op on the local tier
   (loopback-only, single user — no `BRAIN2_API_KEY` needed) and validates the Bearer
   key exactly as before on cloud. Safe only because the local server binds 127.0.0.1.
+- **Per-user auth (cloud, multi-tenant)** — `api/auth.py::require_principal` is the
+  per-request identity dependency the `/v1` data endpoints now use: local tier returns
+  a fixed `Principal("local","local","")`; cloud verifies the request's Supabase GoTrue
+  JWT (HS256 vs `SUPABASE_JWT_SECRET`, `aud="authenticated"`), derives the org via
+  `_org_for_or_create(sub)`, and threads `(user_id, org_id, access_token)` through
+  `resolve_tenant(..., principal=…)` → `get_store(token, org_id=…)` so every read/write
+  scopes to the caller's own org (no `_login()` on the request path). The MCP server keeps
+  the legacy single-configured-user path (`resolve_tenant(principal=None)` → `_login`).
+  `BRAIN2_API_KEY` is now a service-only key, not a user identity. The phone obtains its
+  JWT via `POST /v1/auth/apple` (Supabase `sign_in_with_id_token`) and rotates it via
+  `POST /v1/auth/refresh`. Activity-KG reads/writes are org-scoped in `SupabaseStore`
+  (closing the prior service-client RLS bypass).
 - **Settings** — Supabase/server creds are **optional**, so the local tier boots with
   none. `service_client()` raises clearly only if the cloud path is hit creds-less.
 
@@ -153,6 +165,8 @@ npm run build
 | Endpoint | Method | Purpose |
 |---|---|---|
 | `/health` | GET | Health check |
+| `/v1/auth/apple` | POST | Exchange an Apple `identityToken` for a Supabase session (un-gated; Supabase verifies + provisions the user) |
+| `/v1/auth/refresh` | POST | Rotate a GoTrue session via the refresh token (un-gated proxy; keeps the anon key server-side) |
 | `/v1/capture` | POST | Save a workspace snapshot as a Finding |
 | `/v1/resume/{project}/{kb}` | GET | Tap KB → resume card. `?format=html` (default, webview) or `?format=json` (native, structured: hypothesis/snapshots/synopsis/activity/coverage/preamble) |
 | `/v1/projects` | GET | Discovery: caller's repos+branches with last-activity + snapshot-count chips (the iOS home screen; `Store.list_projects`) |
