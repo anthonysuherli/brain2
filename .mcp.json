@@ -1,7 +1,7 @@
 {
   "brain2": {
     "type": "stdio",
-    "command": "python",
+    "command": "/Users/suherli/Repositories/brain2/backend/.venv/bin/python",
     "args": ["-m", "brain2.interfaces.mcp.server"],
     "cwd": "/Users/suherli/Repositories/brain2/backend"
   }
