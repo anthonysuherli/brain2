@@ -305,3 +305,56 @@ def test_commits_since_capture_nonzero(tmp_path):
     past_iso = "2000-01-01T00:00:00Z"
     count = sl.commits_since_capture(str(repo), past_iso)
     assert count >= 1  # at least the "init" commit
+
+
+# ── never-fail + smoke (integration) ────────────────────────────────────────
+import subprocess as _sp
+
+
+def _run_statusline(stdin_json: str, env_overrides: dict | None = None) -> tuple[int, str]:
+    """Run the statusline script as a subprocess, return (returncode, stdout)."""
+    import sys as _sys
+    script = str(_pathlib.Path(__file__).parent / "brain2-statusline.py")
+    merged_env = {**os.environ, **(env_overrides or {})}
+    result = _sp.run(
+        [_sys.executable, script],
+        input=stdin_json,
+        capture_output=True,
+        text=True,
+        env=merged_env,
+        timeout=10,
+    )
+    return result.returncode, result.stdout
+
+
+def test_never_fails_garbage_stdin():
+    code, _ = _run_statusline("not json at all {{{{")
+    assert code == 0
+
+
+def test_never_fails_non_git_cwd():
+    code, _ = _run_statusline(
+        '{"cwd": "/tmp"}',
+        env_overrides={"BRAIN2_BACKEND": "local", "BRAIN2_DB_PATH": "/dev/null"},
+    )
+    assert code == 0
+
+
+def test_never_fails_git_absent(tmp_path):
+    code, _ = _run_statusline(
+        json.dumps({"cwd": str(tmp_path)}),
+        env_overrides={"PATH": "/dev/null", "BRAIN2_BACKEND": "local"},
+    )
+    assert code == 0
+
+
+def test_smoke_local_tier_no_capture(tmp_path):
+    """Run in a real git repo with empty DB — should exit 0 and show no-capture."""
+    repo = _make_repo(tmp_path)
+    db = str(tmp_path / "empty.db")
+    code, out = _run_statusline(
+        json.dumps({"cwd": str(repo)}),
+        env_overrides={"BRAIN2_BACKEND": "local", "BRAIN2_DB_PATH": db},
+    )
+    assert code == 0
+    assert "no capture" in out or out == ""

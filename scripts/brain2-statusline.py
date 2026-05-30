@@ -430,8 +430,67 @@ def truncate(text: str, width: int = HYP_WIDTH) -> str:
     return text if len(text) <= width else text[: width - 1] + "…"
 
 
+# ── snapshot content helpers ─────────────────────────────────────────────────
+def _local_snapshot_content(project: str, branch: str) -> str | None:
+    path = db_path()
+    if not os.path.exists(path):
+        return None
+    try:
+        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=0.5)
+        conn.execute("PRAGMA query_only = ON")
+        row = conn.execute(
+            """
+            SELECT f.content FROM findings f
+            JOIN kbs k      ON f.kb_id = k.id
+            JOIN projects p ON k.project_id = p.id
+            WHERE p.org_id = ? AND p.name = ? AND k.name = ? AND f.category = 'snapshot'
+            ORDER BY f.created_at DESC LIMIT 1
+            """,
+            (ORG_ID, project, branch),
+        ).fetchone()
+        conn.close()
+        return row[0] if row else None
+    except Exception:
+        return None
+
+
+def _cloud_snapshot_content(project: str, branch: str, env: dict) -> str | None:
+    base = env.get("SUPABASE_URL", "").rstrip("/")
+    key  = env.get("SUPABASE_SERVICE_ROLE_KEY") or env.get("SUPABASE_ANON_KEY", "")
+    if not base or not key:
+        return None
+    select = f"content,kbs!inner(name,{CLOUD_FK}(name))"
+    params = urllib.parse.urlencode([
+        ("select", select),
+        ("category", "eq.snapshot"),
+        ("kbs.name", f"eq.{branch}"),
+        ("kbs.projects.name", f"eq.{project}"),
+        ("order", "created_at.desc"),
+        ("limit", "1"),
+    ])
+    url = f"{base}/rest/v1/findings?{params}"
+    req = urllib.request.Request(url, headers={
+        "apikey": key, "Authorization": f"Bearer {key}", "Accept": "application/json",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=CLOUD_TIMEOUT) as resp:
+            rows = json.load(resp)
+        if rows and isinstance(rows, list):
+            return rows[0].get("content")
+    except Exception:
+        pass
+    return None
+
+
+def _fetch_snapshot_content(project: str, branch: str, env: dict, tier: str) -> str | None:
+    if tier == "cloud":
+        return _cloud_snapshot_content(project, branch, env)
+    return _local_snapshot_content(project, branch)
+
+
 # ── main ────────────────────────────────────────────────────────────────────
-def main() -> None:
+def _portfolio_main() -> None:
+    """Legacy cross-branch portfolio view. Activate with BRAIN2_STATUSLINE=portfolio."""
     cwd = os.getcwd()
     try:
         data = json.load(sys.stdin)
@@ -494,6 +553,77 @@ def main() -> None:
     if overflow:
         line += f"  {GREY}+{overflow} more{RESET}"
     sys.stdout.write(line)
+
+
+def main() -> None:
+    if os.environ.get("BRAIN2_STATUSLINE") == "portfolio":
+        _portfolio_main()
+        return
+
+    cwd = os.getcwd()
+    width = 80
+    try:
+        data = json.load(sys.stdin)
+        cwd = (data.get("workspace") or {}).get("current_dir") or data.get("cwd") or cwd
+        width = int((data.get("terminal") or {}).get("width") or 80)
+    except Exception:
+        pass
+
+    root = git(cwd, "rev-parse", "--show-toplevel")
+    if not root:
+        return
+    cur_branch  = git(cwd, "rev-parse", "--abbrev-ref", "HEAD") or "(detached)"
+    cur_project = os.path.basename(root)
+
+    env  = load_env(root)
+    tier = resolve_tier(env)
+    fetch = (lambda proj: cloud_map(proj, env)) if tier == "cloud" else local_map
+
+    snapshot = None
+    age_secs  = 0.0
+    try:
+        branch_map = fetch(cur_project)
+        text, created_at = branch_map.get(cur_branch, (None, None))
+        if created_at:
+            dt = datetime.fromisoformat(str(created_at).replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            age_secs = max(0.0, (datetime.now(timezone.utc) - dt).total_seconds())
+        if text is not None or created_at is not None:
+            snapshot = {"hyp": text, "created_at": created_at}
+    except Exception:
+        pass
+
+    moved, commits = 0, 0
+    try:
+        captured_content = _fetch_snapshot_content(cur_project, cur_branch, env, tier)
+        captured_files   = parse_diff_stat_block(captured_content)
+        current_files    = live_diff_files(root)
+        captured_at_str  = (snapshot or {}).get("created_at") or ""
+        commits_ct       = commits_since_capture(root, str(captured_at_str)) if captured_at_str else 0
+        moved, commits   = compute_drift(captured_files, current_files, commits_ct)
+    except Exception:
+        pass
+
+    state = classify(
+        snapshot=snapshot,
+        age_secs=age_secs,
+        moved=moved,
+        commits_since=commits,
+    )
+
+    utf8 = _utf8_capable()
+    hyp  = (snapshot or {}).get("hyp")
+    line1, hyp_fits = render_line1(cur_project, cur_branch, hyp, width)
+    try:
+        line2 = render_line2(state, age_secs, moved, commits, hyp, hyp_fits, utf8)
+    except Exception:
+        line2 = ""
+
+    if line1:
+        sys.stdout.write(line1)
+        if line2:
+            sys.stdout.write("\n" + line2)
 
 
 if __name__ == "__main__":
