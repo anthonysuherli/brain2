@@ -1,10 +1,16 @@
 """Tests for brain2-statusline.py pure functions."""
-import importlib.util, sys, os, pathlib
+import importlib.util
+import importlib.abc
+import pathlib
+import json
+import os
 
 # Load the script as a module without executing main()
 _SCRIPT = pathlib.Path(__file__).parent / "brain2-statusline.py"
 spec = importlib.util.spec_from_file_location("statusline", _SCRIPT)
+assert spec is not None and spec.loader is not None
 sl = importlib.util.module_from_spec(spec)
+assert isinstance(spec.loader, importlib.abc.Loader)
 spec.loader.exec_module(sl)
 
 
