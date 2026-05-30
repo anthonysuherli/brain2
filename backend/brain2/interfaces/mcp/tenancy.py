@@ -44,11 +44,15 @@ def _login() -> tuple[str, str]:
     return res.user.id, res.session.access_token
 
 
+class _NoOrgError(RuntimeError):
+    """The user has no org membership yet (distinct from real DB errors)."""
+
+
 def _org_for(user_id: str) -> str:
     sb = service_client()
     om = sb.table("org_members").select("org_id").eq("user_id", user_id).limit(1).execute()
     if not om.data:
-        raise RuntimeError("no org for MCP user — did the handle_new_user trigger run?")
+        raise _NoOrgError("no org for user — did the handle_new_user trigger run?")
     return om.data[0]["org_id"]
 
 
@@ -56,11 +60,13 @@ def _org_for_or_create(user_id: str) -> str:
     """Org for the user; provision one if the signup trigger didn't (first-seen)."""
     try:
         return _org_for(user_id)
-    except RuntimeError:
+    except _NoOrgError:
         sb = service_client()
         org = sb.table("orgs").insert(
             {"name": f"{user_id[:8]}'s workspace", "owner_user_id": user_id}
         ).execute().data
+        if not org:
+            raise RuntimeError("insert into orgs returned no row")
         org_id = org[0]["id"]
         sb.table("org_members").insert(
             {"org_id": org_id, "user_id": user_id, "role": "owner"}
