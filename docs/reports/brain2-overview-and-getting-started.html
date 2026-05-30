@@ -150,17 +150,19 @@
     <div class="panel"><h3 style="margin-top:0">Claude Code plugin</h3>
       <p class="muted">MCP tools <code>brain2_capture</code>, <code>brain2_resume</code>,
       <code>brain2_explore</code>; skills <code>/brain2:capture&nbsp;|&nbsp;resume&nbsp;|&nbsp;search&nbsp;|&nbsp;explore</code></p></div>
-    <div class="panel"><h3 style="margin-top:0">VS Code extension</h3>
-      <p class="muted">Automatic capture triggers + the resume-card webview, rendered on focus.</p></div>
+    <div class="panel"><h3 style="margin-top:0">iOS companion</h3>
+      <p class="muted">Native SwiftUI read spine: projects, resume cards, and cross-repo activity.</p></div>
   </div>
 </section>
 
 <section id="status">
   <h2>5 &middot; Status (honest)</h2>
-  <p><span class="pill ok">SHIPPED</span> Engine fork, VS Code extension (triggers + card),
-  resume-card polish, the always-open explore seam, and the <strong>two-tier storage</strong>
-  with <code>get_store()</code>/<code>active_backend()</code> selection. v0 was built
-  subagent-driven (4 tasks, 57 tests), merged, and packaged as a Claude Code plugin.</p>
+  <p><span class="pill ok">SHIPPED</span> Engine fork, the resume card (backend-rendered),
+  the always-open explore seam, the <strong>two-tier storage</strong> with
+  <code>get_store()</code>/<code>active_backend()</code> selection, and a native iOS
+  read-spine app. v0 was built subagent-driven (4 tasks, 57 tests), merged, and packaged
+  as a Claude Code plugin. <em>(The VS Code extension was removed — not the right surface
+  for now.)</em></p>
   <p><span class="pill soon">FUTURE — designed, not built</span> The paid differentiators:
   managed keys, cross-machine sync, cross-repo search, team sharing. Cloud MVP today is just the
   Supabase backend + GoTrue login.</p>
@@ -219,12 +221,12 @@ python -m brain2.interfaces.mcp.server</code></pre>
   <p class="muted">Targets resolve automatically: <strong>project = git repo name</strong>,
   <strong>kb = current git branch</strong> — no active-KB state to manage.</p>
 
-  <h3>Step 5 — VS Code extension (optional)</h3>
-<pre><code>cd vscode-extension
-npm install
-npm run build      # then press F5 to launch the Extension Development Host</code></pre>
-  <p>Fires captures automatically on window blur / branch switch / idle, and renders the resume
-  card on focus.</p>
+  <h3>Step 5 — iOS companion (optional)</h3>
+<pre><code>cd ios-app
+xcodegen generate
+open Brain2.xcodeproj   # then build &amp; run in Xcode (needs full Xcode, not just CLT)</code></pre>
+  <p>A native SwiftUI read spine: sign in, browse cross-repo activity, and read resume cards
+  on the go against the same <code>/v1</code> API.</p>
 
   <div class="callout"><strong>The 30-second mental model:</strong> Capture when you leave →
   Resume when you're back. Free tier keeps everything on your machine; the cloud tier is the same

@@ -1,27 +1,29 @@
 # brain2
 
-**Context resume + one-click capture.** brain2 auto-saves your thinking when interrupted 
-and replays it as a 30-second "where I was" card when you return. No more rebuilding 
-context for 9.5 minutes.
+**One-command capture + instant resume.** brain2 saves your thinking before you switch 
+away and replays it as a 30-second "where I was" card when you return. No more rebuilding 
+context for 9.5 minutes. *(Automatic capture-on-interrupt is a roadmap goal; today you 
+checkpoint with one command.)*
 
 Most tools capture *state* (files, layout, git history). brain2 captures *intent* — the 
 one-line hypothesis in your head: *"JWT validation is caching stale tokens."* That's the 
 wedge that matters.
 
 Beyond your current device, brain2 is a **portable knowledge engine**: your captured 
-insights live in a searchable journal accessible from VS Code, Claude Code, or any tool 
-that speaks HTTP. Sync, search, and share across machines (paid tier, future).
+insights live in a searchable journal accessible from Claude Code, the iOS companion, or 
+any tool that speaks HTTP. Sync, search, and share across machines (paid tier, future).
 
 ## Core features
 
-### 1. Capture — Save your thinking on interruption
+### 1. Capture — Save your thinking before you switch away
 
-When interrupted (window blur, branch switch, long idle), brain2 snapshots your workspace 
-in one second and asks: *"What were you working on?"* (optional)
+Before a meeting, a branch switch, or end of day, run `/brain2:capture`. brain2 snapshots 
+your workspace in one second and records *"What were you working on?"* — the one-line 
+hypothesis is the load-bearing field.
 
 ```
-Before:                    Interrupt:                 After:
-┌─────────────────┐       (window blur)        ┌──────────────────┐
+Before:                    Capture:                   After:
+┌─────────────────┐    /brain2:capture          ┌──────────────────┐
 │ Fixing bug in   │  ───► brain2 asks:  ───►  │ Finding saved:   │
 │ auth flow       │       "What were    │      │ • git diff       │
 │ files: [3]      │       you doing?"   │      │ • open files     │
@@ -85,16 +87,6 @@ primitives (Findings, pgvector search, tap/preamble) from chat to automatic capt
 
 ## Use it two ways
 
-### VS Code extension (automatic)
-Interruptions are detected automatically. The resume card pops up when you refocus. 
-Captures trigger on window blur, `git checkout`, or idle timeout.
-
-**What you see:**
-```
-You get interrupted → … back to VS Code → resume card appears (auto)
-                     (30-second "where I was" card)
-```
-
 ### Claude Code plugin (on demand)
 Slash commands from inside any Claude Code session:
 
@@ -106,6 +98,11 @@ Slash commands from inside any Claude Code session:
 ```
 
 Example: You're in a Claude Code session debugging auth. Type `/brain2:search "how did I set up JWT validation?"` and get an answer from your captured snapshots.
+
+### iOS companion (read on the go)
+A native SwiftUI app — the read spine. Sign in, browse your cross-repo activity, and 
+read resume cards from your phone. Consumes the same `/v1/projects` + `/v1/resume` + 
+`/v1/activity` API.
 
 ## Knowledge engine: portable & accessible
 
@@ -123,7 +120,7 @@ from the same code — the difference is where your data lives.
 **Access your knowledge anywhere:**
 
 ```
-VS Code extension (local)     Claude Code (cloud)       Browser (cloud, future)
+Claude Code (local/cloud)     iOS companion (cloud)     Browser (cloud, future)
      │                              │                            │
      └──────────────┬───────────────┴───────────────────────┘
                     │
@@ -135,7 +132,7 @@ VS Code extension (local)     Claude Code (cloud)       Browser (cloud, future)
       (local db)      (cloud db)
 ```
 
-Free tier: single device, no sync. Paid tier: access from VS Code, Claude Code, or 
+Free tier: single device, no sync. Paid tier: access from Claude Code, the iOS app, or 
 any tool that speaks HTTP. Team sharing and cross-repo search are designed (future).
 
 The paid value props — **cross-machine sync**, **cross-repo search**, **managed keys**, 
@@ -150,22 +147,22 @@ The paid value props — **cross-machine sync**, **cross-repo search**, **manage
         Hypothesis: "JWT validation is caching stale tokens"
         
 14:35 — [Meeting call]
-        VS Code blur → brain2 captures snapshot
+        /brain2:capture → brain2 saves the snapshot
         
 15:47 — [Back from meeting]
-        Focus VS Code → resume card appears:
+        /brain2:resume → resume card appears:
         "🔸 JWT validation is caching stale tokens"
         Recent context shown. No "where was I?" moment.
 ```
 
 ### Example 2: Context switch across branches
 ```
-You're on main, work is on fix/session-timeout
-You switch branches → capture fires
+You're on fix/session-timeout, about to switch to main
+    /brain2:capture → snapshot saved against this branch
     
 Hours later, switch back:
     git checkout fix/session-timeout
-    → brain2 resumes from that branch
+    /brain2:resume → resumes from that branch
     → shows the last hypothesis + snapshots
 ```
 
@@ -208,18 +205,7 @@ BRAIN2_BACKEND=cloud uvicorn brain2.api.main:app --reload --port 8002
 Set `OPENAI_API_KEY` for embeddings. Optionally set `TAVILY_API_KEY` for the explore 
 pipeline. Data lives in `~/.brain2/brain.db` (local) or Supabase (cloud).
 
-### 2. VS Code extension
-
-```bash
-cd vscode-extension
-npm install && npm run build
-```
-
-Open `vscode-extension/` in VS Code, press **F5** to launch the extension host.
-
-Run **`brain2: Sign In`** and paste your `BRAIN2_API_KEY` (or leave blank for local tier).
-
-### 3. Claude Code MCP server (optional)
+### 2. Claude Code MCP server (optional)
 
 Add to `~/.claude/settings.json`:
 
@@ -239,28 +225,15 @@ Then use `/brain2:resume`, `/brain2:capture`, etc. in Claude Code.
 
 ## Configuration
 
-By default, the knowledge base is keyed by **project** (workspace folder name) and 
-**kb** (git branch). Customize in VS Code `settings.json`:
-
-```json
-{
-  "brain2.apiUrl": "http://localhost:8002",
-  "brain2.project": "my-project",
-  "brain2.kb": "my-session",
-  "brain2.idleThresholdSeconds": 300,
-  "brain2.enableBlurTrigger": true,
-  "brain2.enableGitCheckoutTrigger": true
-}
-```
-
-Override the database path with `BRAIN2_DB_PATH` (local) or set Supabase credentials 
-in `.env` (cloud).
+By default, the knowledge base is keyed by **project** (git repo name) and **kb** 
+(git branch). Override the database path with `BRAIN2_DB_PATH` (local) or set Supabase 
+credentials in `.env` (cloud); the cloud tier reads `BRAIN2_API_KEY` for Bearer auth.
 
 ## Design principles
 
 - **Intent over state** — capture why, not just what (the hypothesis is the headline)
-- **Zero friction** — auto-capture on interrupt; no manual save buttons
-- **Bounded capture** — snapshots at moments that matter (blur, branch switch, idle)
+- **Low friction** — one command checkpoints everything; no forms to fill out
+- **Bounded capture** — snapshot at the moments that matter (before a meeting, branch switch, end of day)
 - **Survive context switches** — works across folders, branches, machines
 - **Never blocking** — capture is fire-and-forget; <1s per snapshot
 
@@ -275,8 +248,8 @@ See [`CLAUDE.md`](CLAUDE.md) for:
 ## Status
 
 - [x] **Core engine** — capture, resume, explore pipelines
-- [x] **VS Code extension** — auto-triggers, resume card webview
 - [x] **Claude Code plugin** — slash commands (`/brain2:resume`, etc.)
+- [x] **iOS companion** — native SwiftUI read spine (projects, resume cards, activity)
 - [x] **Storage tiers** — free (SQLite) and paid (Supabase) in one codebase
 - ⬜ **Cross-machine sync** — designed, not yet shipped
 - ⬜ **Team sharing** — designed, not yet shipped

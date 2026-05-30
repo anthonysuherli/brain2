@@ -1,5 +1,12 @@
 # WS2 — Distribution & Launch Channels
 
+> **⚠️ Correction (2026-05-30):** The **VS Code extension was removed** — it's not the
+> right surface for now. Every channel below that depends on it (notably **#3 VS Code
+> Marketplace**, the r/vscode angle, and "Claude Code & VS Code" taglines) needs
+> re-scoping before execution. The active surfaces are the **Claude Code plugin** and the
+> **iOS companion**. The ranked analysis is preserved as-is for the reasoning; treat the
+> VS-Code-dependent rows as on hold, not actionable.
+
 **Product:** brain2 — a context-capture-and-resume engine for developers. On interruption it captures workspace state (branch, open files, git diff, a one-line hypothesis) and replays a 30-second "resume card." Freemium: free local tier (SQLite, loopback, no auth, data stays on machine) + paid cloud tier (Supabase; sync/cross-repo/team designed but mostly unbuilt). Distributed as a **Claude Code plugin** (MCP tools) + a **VS Code extension**. Solo founder.
 
 **Date:** 2026-05-29 · **Owner:** founder

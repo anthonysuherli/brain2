@@ -22,7 +22,6 @@ brain2 fully standalone.
   `/v1/activity/{graph,stats}`
 - `brain2/interfaces/mcp/server.py` — MCP tools: `brain2_capture`, `brain2_resume`,
   `brain2_explore`, `brain2_activity`
-- `vscode-extension/` — VS Code extension (capture triggers + resume card webview)
 - `ios-app/` — native SwiftUI companion (first standalone UI). v1 = read spine:
   Sign in, browse cross-repo activity, read resume cards. Consumes `/v1/projects`
   + `/v1/resume?format=json` + `/v1/activity/stats`. XcodeGen project (`project.yml`,
@@ -113,29 +112,22 @@ uvicorn brain2.api.main:app --reload --port 8002
 python -m brain2.interfaces.mcp.server          # add to .claude/settings.json
 ```
 
-```bash
-# Install VS Code extension dependencies
-cd vscode-extension
-npm install
-npm run build
-# Then press F5 in VS Code to launch the Extension Development Host
-```
-
 ## Conventions
 
 - Imports: always `from brain2.*` — never `from divergence.*`
 - Engine updates: when syncing engine improvements from divergence, apply them manually
   (copy file, rename imports). Do NOT re-introduce a cross-repo dep.
-- Auth: cloud tier uses a pre-shared API key (`BRAIN2_API_KEY` in .env = `brain2.apiKey`
-  in VS Code secrets); local tier requires no key (loopback-only, see Storage tiers)
+- Auth: cloud tier uses a pre-shared API key (`BRAIN2_API_KEY` in .env, passed as a
+  Bearer token by clients); local tier requires no key (loopback-only, see Storage tiers)
 - Supabase (cloud tier): same instance and schema as divergence (no migration divergence)
 - KB naming: project = workspace folder name, kb = git branch name
 
 ## Phase status
 
 - [x] Phase 0 — Engine fork (Supabase, pgvector, Finding, preamble/tap)
-- [x] Phase 1 — VS Code extension scaffold (triggers, capture, resume card)
-- [x] Phase 2 — Resume card polish (hypothesis prominent, snapshot count, auto-resume on focus)
+- [~] Phase 1–2 — VS Code extension (capture triggers, resume-card webview, explore
+  seam) — **removed** (not the right surface for now; the Claude Code plugin + iOS
+  app are the active surfaces). The backend HTML resume card (`api/resume.py`) stays.
 - [x] Phase 3 — Always-open explore seam (gap-band → explore pipeline → auto-refresh card)
 - [x] Storage tiers — `Store` protocol + `SQLiteStore`/`SupabaseStore`, `get_store()`/
   `active_backend()` selection, free-tier local entry points (no-auth loopback API +
@@ -172,7 +164,7 @@ npm run build
 
 ## Plugin (Claude Code skills)
 
-brain2 ships as a Claude Code plugin alongside the VS Code extension. Skills live
+brain2 ships as a Claude Code plugin (the primary developer surface). Skills live
 in `skills/` and follow the Divergence pattern — Markdown files that direct how
 Claude Code behaves for each slash command, calling the `brain2_*` MCP tools.
 
