@@ -159,8 +159,10 @@ def test_projects_requires_auth_on_cloud(monkeypatch):
     Supabase call (so no creds/secret needed). Local tier ignores creds entirely;
     this proves the gate is live on cloud."""
     from brain2 import config
+    import brain2.store as store_pkg
 
     config.get_settings.cache_clear()
+    store_pkg._local_stores.clear()
     monkeypatch.setenv("BRAIN2_BACKEND", "cloud")
     try:
         from brain2.api.main import create_app
@@ -171,3 +173,4 @@ def test_projects_requires_auth_on_cloud(monkeypatch):
     finally:
         monkeypatch.delenv("BRAIN2_BACKEND", raising=False)
         config.get_settings.cache_clear()
+        store_pkg._local_stores.clear()

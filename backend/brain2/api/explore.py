@@ -112,7 +112,7 @@ async def _run_pipeline(
     max_findings: int,
 ) -> None:
     """Run the exploration pipeline, persist findings, update the row."""
-    store = get_store(ctx.access_token)
+    store = get_store(ctx.access_token, org_id=ctx.org_id)
     cfg = get_config().exploration
 
     async def on_progress(phase: str) -> None:
@@ -175,7 +175,7 @@ async def _persist_findings(ctx, findings: list, exploration_id: str) -> list[st
     embeddings = await embed_batch(contents)
     for row, emb in zip(rows, embeddings):
         row["embedding"] = emb
-    return await get_store(ctx.access_token).insert_findings(rows)
+    return await get_store(ctx.access_token, org_id=ctx.org_id).insert_findings(rows)
 
 
 def _render_content(content) -> str:
