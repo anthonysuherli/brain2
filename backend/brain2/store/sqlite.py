@@ -624,22 +624,42 @@ class SQLiteStore:
         seed_node_ids: list[str] | None = None,
         node_cap: int = 200,
         edge_cap: int = 600,
+        depth: int = 1,
     ) -> dict:
-        """Seeded → seeds + incident edges + one-hop neighbours; else whole graph."""
+        """BFS from ``seed_node_ids`` up to ``depth`` hops; else whole graph, capped."""
         if seed_node_ids:
-            ids = list(dict.fromkeys(seed_node_ids))
-            ph = ",".join("?" for _ in ids)
-            edge_rows = self._conn.execute(
-                f"SELECT id, source_node_id, target_node_id, relation, properties, grounded_in "
-                f"FROM kg_edges WHERE kb_id = ? "
-                f"AND (source_node_id IN ({ph}) OR target_node_id IN ({ph})) LIMIT ?;",
-                (kb_id, *ids, *ids, edge_cap),
-            ).fetchall()
-            node_id_set = set(ids)
-            for er in edge_rows:
-                node_id_set.add(er["source_node_id"])
-                node_id_set.add(er["target_node_id"])
-            wanted = list(node_id_set)[:node_cap]
+            frontier = list(dict.fromkeys(seed_node_ids))
+            all_node_ids: set[str] = set(frontier)
+            all_edge_rows: list = []
+            seen_edge_ids: set[str] = set()
+            visited_frontiers: set[str] = set()
+            for _ in range(max(depth, 1)):
+                to_expand = [n for n in frontier if n not in visited_frontiers]
+                if not to_expand:
+                    break
+                visited_frontiers.update(to_expand)
+                ph = ",".join("?" for _ in to_expand)
+                hop_rows = self._conn.execute(
+                    f"SELECT id, source_node_id, target_node_id, relation, properties, grounded_in "
+                    f"FROM kg_edges WHERE kb_id = ? "
+                    f"AND (source_node_id IN ({ph}) OR target_node_id IN ({ph})) LIMIT ?;",
+                    (kb_id, *to_expand, *to_expand, edge_cap),
+                ).fetchall()
+                new_nodes: set[str] = set()
+                for er in hop_rows:
+                    eid = er["id"]
+                    if eid not in seen_edge_ids:
+                        seen_edge_ids.add(eid)
+                        all_edge_rows.append(er)
+                    new_nodes.add(er["source_node_id"])
+                    new_nodes.add(er["target_node_id"])
+                all_node_ids.update(new_nodes)
+                if len(all_node_ids) >= node_cap:
+                    break
+                frontier = [n for n in new_nodes if n not in visited_frontiers]
+                if not frontier:
+                    break
+            wanted = list(all_node_ids)[:node_cap]
             nph = ",".join("?" for _ in wanted)
             node_rows = (
                 self._conn.execute(
@@ -650,6 +670,7 @@ class SQLiteStore:
                 if wanted
                 else []
             )
+            edge_rows = all_edge_rows[:edge_cap]
         else:
             node_rows = self._conn.execute(
                 "SELECT id, type, label, properties FROM kg_nodes WHERE kb_id = ? LIMIT ?;",

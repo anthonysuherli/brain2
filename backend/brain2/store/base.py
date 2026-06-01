@@ -140,11 +140,13 @@ class Store(Protocol):
         seed_node_ids: list[str] | None = None,
         node_cap: int = 200,
         edge_cap: int = 600,
+        depth: int = 1,
     ) -> dict:
         """Return ``{"nodes", "edges"}`` for `kb_id`.
 
-        With ``seed_node_ids`` → those nodes, their incident edges, and the
-        immediate neighbours (one hop). Without → the whole graph, capped."""
+        With ``seed_node_ids`` → BFS from those nodes up to ``depth`` hops,
+        capped by ``node_cap``/``edge_cap``. Without → the whole graph, capped.
+        ``depth=1`` is the original one-hop behaviour."""
         ...
 
     def list_kg_nodes(

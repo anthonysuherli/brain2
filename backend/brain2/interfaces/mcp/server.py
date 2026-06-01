@@ -291,11 +291,13 @@ async def brain2_graph(
         except Exception:  # noqa: BLE001 — degrade gracefully to whole-graph
             seed_ids = None
 
+    d = min(depth or cfg.graph_default_depth, cfg.graph_max_depth)
     g = store.get_kg_subgraph(
         ctx.kb_id,
         seed_node_ids=seed_ids,
         node_cap=cfg.graph_node_cap,
         edge_cap=cfg.graph_edge_cap,
+        depth=d,
     )
     return {**g, "node_count": len(g.get("nodes", [])), "edge_count": len(g.get("edges", []))}
 

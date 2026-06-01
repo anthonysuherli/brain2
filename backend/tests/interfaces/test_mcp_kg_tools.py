@@ -281,7 +281,7 @@ async def test_graph_returns_nodes_edges_with_counts():
 
 @pytest.mark.asyncio
 async def test_graph_passes_focus_and_depth():
-    """focus and depth are forwarded to get_kg_subgraph (as seed_node_ids=None when focus given)."""
+    """focus and depth are forwarded to get_kg_subgraph (as seed_node_ids + depth kwarg)."""
     mock_store = MagicMock()
     mock_store.get_kg_subgraph.return_value = {"nodes": [], "edges": []}
     # match_kg_nodes used when focus is a string
@@ -295,6 +295,10 @@ async def test_graph_passes_focus_and_depth():
 
     assert "nodes" in result
     assert "edges" in result
+    mock_store.get_kg_subgraph.assert_called_once()
+    call_kwargs = mock_store.get_kg_subgraph.call_args
+    # depth=1 is within the config max (4) so it should be forwarded as-is.
+    assert call_kwargs.kwargs.get("depth") == 1
 
 
 # ---------------------------------------------------------------------------

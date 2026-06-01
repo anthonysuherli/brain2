@@ -411,28 +411,56 @@ class SupabaseStore:
         seed_node_ids: list[str] | None = None,
         node_cap: int = 200,
         edge_cap: int = 600,
+        depth: int = 1,
     ) -> dict:
-        """Seeded → seeds + incident edges + one-hop neighbours; else whole graph."""
+        """BFS from ``seed_node_ids`` up to ``depth`` hops; else whole graph, capped."""
         sb = service_client()
         edge_cols = "id, source_node_id, target_node_id, relation, properties"
         node_cols = "id, type, label, properties"
         if seed_node_ids:
-            ids = list(dict.fromkeys(seed_node_ids))
-            eq = (
-                sb.table("kg_edges").select(edge_cols).eq("kb_id", kb_id)
-                .or_(
-                    f"source_node_id.in.({','.join(ids)}),"
-                    f"target_node_id.in.({','.join(ids)})"
+            frontier = list(dict.fromkeys(seed_node_ids))
+            all_node_ids: set[str] = set(frontier)
+            all_edges: list[dict] = []
+            visited_frontiers: set[str] = set()
+            for _ in range(max(depth, 1)):
+                # Only expand nodes not already used as a frontier.
+                to_expand = [n for n in frontier if n not in visited_frontiers]
+                if not to_expand:
+                    break
+                visited_frontiers.update(to_expand)
+                ids_str = ",".join(to_expand)
+                eq = (
+                    sb.table("kg_edges").select(edge_cols).eq("kb_id", kb_id)
+                    .or_(
+                        f"source_node_id.in.({ids_str}),"
+                        f"target_node_id.in.({ids_str})"
+                    )
                 )
-            )
-            if self.org_id is not None:
-                eq = eq.eq("org_id", self.org_id)
-            edges = eq.limit(edge_cap).execute().data or []
-            node_id_set = set(ids)
-            for e in edges:
-                node_id_set.add(e["source_node_id"])
-                node_id_set.add(e["target_node_id"])
-            wanted = list(node_id_set)[:node_cap]
+                if self.org_id is not None:
+                    eq = eq.eq("org_id", self.org_id)
+                hop_edges = eq.limit(edge_cap).execute().data or []
+                all_edges.extend(hop_edges)
+                # Collect newly discovered neighbours as next frontier.
+                new_nodes: set[str] = set()
+                for e in hop_edges:
+                    new_nodes.add(e["source_node_id"])
+                    new_nodes.add(e["target_node_id"])
+                all_node_ids.update(new_nodes)
+                if len(all_node_ids) >= node_cap:
+                    break
+                frontier = [n for n in new_nodes if n not in visited_frontiers]
+                if not frontier:
+                    break
+            # Dedupe edges by id.
+            seen_edge_ids: set[str] = set()
+            unique_edges: list[dict] = []
+            for e in all_edges:
+                eid = e.get("id")
+                if eid not in seen_edge_ids:
+                    seen_edge_ids.add(eid)  # type: ignore[arg-type]
+                    unique_edges.append(e)
+            edges = unique_edges[:edge_cap]
+            wanted = list(all_node_ids)[:node_cap]
             if wanted:
                 nq = sb.table("kg_nodes").select(node_cols).in_("id", wanted)
                 if self.org_id is not None:
