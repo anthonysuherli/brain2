@@ -10,6 +10,8 @@ Best-effort and gated by BRAIN2_DISTILL_KG / BRAIN2_DISTILL_LLM.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
+from difflib import SequenceMatcher
 
 from pydantic import BaseModel, Field
 
@@ -64,3 +66,35 @@ async def synthesize(findings: list[dict], cfg: ConceptConfig) -> list[ConceptCa
         fallback_model=cfg.synth_fallback_model,
     )
     return batch.concepts[: cfg.max_concepts_per_pass]
+
+
+@dataclass
+class ReconcileAction:
+    kind: str               # "new" | "reinforce"
+    node_id: str | None = None
+
+
+def _claim_similar(a: str, b: str, threshold: float) -> bool:
+    if not a or not b:
+        return False
+    return SequenceMatcher(None, a.lower(), b.lower()).ratio() >= threshold
+
+
+def reconcile_action(
+    cand: ConceptCandidate,
+    *,
+    nearest: dict | None,
+    similarity: float,
+    cfg: ConceptConfig,
+) -> ReconcileAction:
+    """Phase A: decide new vs reinforce. A candidate reinforces the nearest existing
+    concept only when BOTH the vector is close (>= reconcile_min_sim) AND the claim
+    text fuzzy-matches (>= reconcile_fuzzy) — guarding against semantically-near but
+    distinct claims. Otherwise it's a new concept. (refine/contradict: Phase C.)"""
+    if (
+        nearest
+        and similarity >= cfg.reconcile_min_sim
+        and _claim_similar(cand.claim, nearest.get("label", ""), cfg.reconcile_fuzzy)
+    ):
+        return ReconcileAction(kind="reinforce", node_id=nearest["id"])
+    return ReconcileAction(kind="new")
