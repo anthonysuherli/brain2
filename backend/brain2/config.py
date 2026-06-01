@@ -169,6 +169,31 @@ class ActivityConfig(BaseModel):
     rollup_sessions: int = 6
 
 
+class ConceptConfig(BaseModel):
+    """Concept distillation — the synthesis tier above findings/activity.
+
+    Runs select->synthesize->evaluate->reconcile over a KB's evidence to produce
+    `concept` KG nodes. Best-effort and gated; never blocks capture/explore.
+    """
+
+    # Synthesis LLM (evidence cluster -> candidate concepts).
+    synth_model: str = "anthropic/claude-sonnet-4.6"
+    synth_fallback_model: str = "openai/gpt-5.4-mini"
+    temperature: float = 0.0
+
+    # Neighborhood selection caps.
+    neighborhood_cap: int = 30          # max findings fed to one synthesis call
+    max_concepts_per_pass: int = 6      # cap candidates from one synthesis call
+
+    # Reconcile (Phase A: new vs reinforce).
+    reconcile_min_sim: float = 0.78     # cosine: above => same concept, reinforce
+    reconcile_fuzzy: float = 0.80       # SequenceMatcher claim-title ratio
+
+    # Quality gate (reuses the exploration critic).
+    enable_evaluation: bool = True
+    min_confidence: float = 0.2
+
+
 class PublicApiConfig(BaseModel):
     preamble_default_limit: int = 12
     preamble_max_limit: int = 40
@@ -199,6 +224,7 @@ class AppConfig(BaseModel):
     exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
     embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
     activity: ActivityConfig = Field(default_factory=ActivityConfig)
+    concept: ConceptConfig = Field(default_factory=ConceptConfig)
     public_api: PublicApiConfig = Field(default_factory=PublicApiConfig)
     monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
 
