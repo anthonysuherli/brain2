@@ -123,6 +123,21 @@ class Store(Protocol):
         ``(source, target, relation)`` is skipped (idempotent re-capture)."""
         ...
 
+    async def update_kg_node(
+        self,
+        kb_id: str,
+        node_id: str,
+        *,
+        properties: dict,
+        grounded_in: list[str] | None = None,
+        embedding: list[float] | None = None,
+    ) -> None:
+        """Overwrite a node's payload (unlike upsert_kg_nodes, which merges with
+        existing-wins). `properties` replaces wholesale; `grounded_in` replaces when
+        given; `embedding` re-indexes the vector when given. Used to re-distill a
+        concept's body/confidence/version in place."""
+        ...
+
     async def match_kg_nodes(
         self,
         kb_id: str,

@@ -190,3 +190,34 @@ def test_graph_protocol_parity_with_supabase():
         "get_kg_subgraph", "list_kg_nodes", "kg_stats",
     ):
         assert hasattr(SQLiteStore, m) and hasattr(SupabaseStore, m)
+
+
+# --- update_kg_node (overwrite, not merge) ----------------------------------
+
+
+async def test_update_kg_node_overwrites_properties(store):
+    [nid] = await store.upsert_kg_nodes(
+        "akb", [_node("concept", "x compounds", properties={"body": "old", "version": 1})]
+    )
+    await store.update_kg_node(
+        "akb", nid, properties={"body": "new", "version": 2}
+    )
+    rows = store.list_kg_nodes("akb", type="concept")
+    props = next(r for r in rows if r["id"] == nid)["properties"]
+    assert props["body"] == "new"
+    assert props["version"] == 2
+
+
+async def test_update_kg_node_replaces_grounded_and_reembeds(store):
+    [nid] = await store.upsert_kg_nodes(
+        "akb",
+        [_node("concept", "y", embedding=_vec([1.0, 0.0]), grounded_in=["f1"])],
+    )
+    await store.update_kg_node(
+        "akb", nid, properties={"body": "b"},
+        grounded_in=["f1", "f2"], embedding=_vec([0.0, 1.0]),
+    )
+    rows = store.list_kg_nodes("akb", type="concept")
+    assert next(r for r in rows if r["id"] == nid)["grounded_in"] == ["f1", "f2"]
+    hits = await store.match_kg_nodes("akb", _vec([0.0, 1.0]), match_count=1, min_similarity=0.5)
+    assert hits and hits[0]["id"] == nid
