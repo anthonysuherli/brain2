@@ -735,6 +735,7 @@ class SQLiteStore:
 
         Atomically reads the current max version for `kb_id` and inserts the next.
         Returns ``{"version": <new>, "schema": <schema>}``."""
+        # Single shared connection serializes the read-then-write; unique index is the backstop.
         cur = self._conn.execute(
             "SELECT version FROM kg_schemas WHERE kb_id = ? ORDER BY version DESC LIMIT 1;",
             (kb_id,),
