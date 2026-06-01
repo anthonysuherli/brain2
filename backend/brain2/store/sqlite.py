@@ -692,6 +692,17 @@ class SQLiteStore:
             for r in rows
         ]
 
+    def clear_kg(self, kb_id: str) -> None:
+        """Delete all nodes and edges for `kb_id` (edges first — FK / vec_kg_nodes)."""
+        self._conn.execute("DELETE FROM kg_edges WHERE kb_id = ?;", (kb_id,))
+        # Delete vec_kg_nodes for all nodes in this KB before deleting the nodes.
+        for row in self._conn.execute(
+            "SELECT id FROM kg_nodes WHERE kb_id = ?;", (kb_id,)
+        ).fetchall():
+            self._conn.execute("DELETE FROM vec_kg_nodes WHERE node_id = ?;", (row["id"],))
+        self._conn.execute("DELETE FROM kg_nodes WHERE kb_id = ?;", (kb_id,))
+        self._conn.commit()
+
     def kg_stats(self, kb_id: str) -> dict:
         """Node/edge totals + counts by node type and by relation."""
         node_count = self._conn.execute(

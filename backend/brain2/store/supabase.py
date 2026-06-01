@@ -468,6 +468,12 @@ class SupabaseStore:
             q = q.eq("type", type)
         return q.order("created_at", desc=True).limit(n).execute().data or []
 
+    def clear_kg(self, kb_id: str) -> None:
+        """Delete all nodes and edges for `kb_id` (edges first — FK constraint)."""
+        sb = service_client()
+        sb.table("kg_edges").delete().eq("kb_id", kb_id).execute()
+        sb.table("kg_nodes").delete().eq("kb_id", kb_id).execute()
+
     def kg_stats(self, kb_id: str) -> dict:
         """Node/edge totals + counts by node type and by relation."""
         sb = service_client()

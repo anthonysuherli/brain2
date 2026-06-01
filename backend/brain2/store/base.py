@@ -159,6 +159,13 @@ class Store(Protocol):
         by_relation``."""
         ...
 
+    def clear_kg(self, kb_id: str) -> None:
+        """Delete all nodes and edges for `kb_id` (edges first — FK constraint).
+
+        Used by ``build_graph(rebuild=True)`` before a full rebuild. Scoped
+        strictly to ``kb_id`` so other KBs in the same org are never touched."""
+        ...
+
     # --- KG intent schema (versioned, approved target ontology) ---------------
     # Stored in `kg_schemas` (one row per version, newest = active). `set`
     # inserts the next version; `get` reads the highest. The KG builder reads
