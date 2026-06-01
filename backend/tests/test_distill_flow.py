@@ -62,6 +62,32 @@ async def test_distill_kb_reinforces_on_second_pass(monkeypatch, store):
     assert concepts[0]["properties"].get("version", 1) >= 2
 
 
+async def test_distill_binds_about_edge_to_activity_node(monkeypatch, store):
+    kb = "akb"
+    await _seed_findings(store, kb)
+
+    async def fake_synth(findings, cfg):
+        return [d.ConceptCandidate(claim="bound concept", body="b", evidence=[])]
+    monkeypatch.setattr(d, "synthesize", fake_synth)
+    monkeypatch.setattr(d, "_embed_claims", lambda claims: [_vec([0.0, 1.0]) for _ in claims])
+
+    # the evidence ids distill will ground in (the KB's findings, real ids)
+    from brain2.config import get_config
+    ev_ids = [f["id"] for f in await d._select_findings(store, kb, get_config().concept)]
+    assert ev_ids  # sanity
+
+    # a task node grounded in one of those findings
+    await store.upsert_kg_nodes(kb, [{
+        "org_id": "local", "type": "task", "label": "do the thing",
+        "properties": {}, "grounded_in": [ev_ids[0]], "embedding": None,
+    }])
+
+    await d.distill_kb(store, org_id="local", kb_id=kb)
+
+    sub = store.get_kg_subgraph(kb, node_cap=100, edge_cap=200)
+    assert any(e["relation"] == "about" for e in sub["edges"])
+
+
 async def test_reinforce_preserves_evidence_past_recency_window(monkeypatch, store):
     """Regression for I-1: a concept that has fallen OUT of the default
     list_kg_nodes window must still have its prior evidence UNIONED (not wiped) on

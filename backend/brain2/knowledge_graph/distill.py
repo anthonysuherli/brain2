@@ -112,6 +112,28 @@ async def _embed_claims(claims: list[str]) -> list[list[float]]:
     return await embed_batch(claims) if claims else []
 
 
+def _activity_nodes_for_evidence(store: Store, kb_id: str, evidence_ids: list[str]) -> list[str]:
+    """Activity node ids (task/file/repo) whose grounded_in intersects the evidence."""
+    ev = set(evidence_ids)
+    out: list[str] = []
+    for typ in ("task", "file", "repo"):
+        for n in store.list_kg_nodes(kb_id, type=typ, limit=500):
+            if ev & set(n.get("grounded_in") or []):
+                out.append(n["id"])
+    return out
+
+
+async def _bind_about(store: Store, org_id: str, kb_id: str, concept_id: str,
+                      evidence_ids: list[str]) -> None:
+    targets = _activity_nodes_for_evidence(store, kb_id, evidence_ids)
+    if not targets:
+        return
+    await store.upsert_kg_edges(kb_id, [{
+        "org_id": org_id, "source_node_id": concept_id, "target_node_id": t,
+        "relation": "about", "properties": {}, "grounded_in": evidence_ids,
+    } for t in targets])
+
+
 async def _select_findings(store: Store, kb_id: str, cfg: ConceptConfig) -> list[dict]:
     """Phase A neighborhood = the KB's most recent findings (capped). Returns rows
     WITH content (list_findings omits bodies, so fetch each via get_finding)."""
@@ -173,9 +195,10 @@ async def distill_kb(store: Store, *, org_id: str, kb_id: str) -> dict:
                 kb_id, action.node_id,
                 properties=props, grounded_in=merged_ev, embedding=emb,
             )
+            await _bind_about(store, org_id, kb_id, action.node_id, merged_ev)
             reinforced += 1
         else:
-            await store.upsert_kg_nodes(kb_id, [{
+            ids = await store.upsert_kg_nodes(kb_id, [{
                 "org_id": org_id, "type": "concept", "label": cand.claim,
                 "properties": {
                     "body": cand.body, "version": 1, "status": "active",
@@ -184,6 +207,7 @@ async def distill_kb(store: Store, *, org_id: str, kb_id: str) -> dict:
                 },
                 "grounded_in": evidence_ids, "embedding": emb,
             }])
+            await _bind_about(store, org_id, kb_id, ids[0], evidence_ids)
             created += 1
 
     return {"concepts_created": created, "concepts_reinforced": reinforced}
