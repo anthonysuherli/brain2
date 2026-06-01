@@ -143,6 +143,23 @@ async def brain2_explore(
 
 
 @mcp.tool()
+async def brain2_kb_exists(project: str, kb: str) -> dict:
+    """Cheap first-run guard: does a brain2 KB exist for this project/kb?
+
+    Never creates anything. Returns {exists: bool, project, kb}.
+    On genuine backend errors (non-"not found" RuntimeErrors), RAISES so the
+    caller fails closed — don't silently return exists=False on a backend outage.
+    """
+    try:
+        resolve_tenant(project, kb, create=False)
+        return {"exists": True, "project": project, "kb": kb}
+    except RuntimeError as exc:
+        if "not found" in str(exc).lower():
+            return {"exists": False, "project": project, "kb": kb}
+        raise
+
+
+@mcp.tool()
 async def brain2_activity(query: str | None = None, repo: str | None = None) -> dict:
     """Query your cross-repo ACTIVITY graph — what you've been working on.
 
