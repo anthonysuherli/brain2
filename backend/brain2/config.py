@@ -108,7 +108,7 @@ class ExplorationConfig(BaseModel):
 
     planner_model: str = "anthropic/claude-sonnet-4.6"
     extraction_model: str = "anthropic/claude-sonnet-4.6"
-    extraction_fallback_model: str = "openai/gpt-5.4-mini"
+    extraction_fallback_model: str = "openai/gpt-4o-mini"
     evaluation_model: str = "anthropic/claude-sonnet-4.6"
     temperature: float = 0.0
     reasoning_effort: str | None = None
@@ -155,7 +155,7 @@ class ActivityConfig(BaseModel):
     # LLM task distillation (hypothesis → short Task label). When disabled or it
     # fails, the raw hypothesis is used as the Task label — the graph still grows.
     task_model: str = "claude-haiku-4-5"
-    task_fallback_model: str = "openai/gpt-5.4-mini"
+    task_fallback_model: str = "openai/gpt-4o-mini"
     temperature: float = 0.0
     max_task_label_chars: int = 80
 
@@ -177,7 +177,7 @@ class KnowledgeGraphConfig(BaseModel):
     """
 
     extraction_model: str = "anthropic/claude-sonnet-4.6"
-    extraction_fallback_model: str = "openai/gpt-5.4-mini"
+    extraction_fallback_model: str = "openai/gpt-4o-mini"
     temperature: float = 0.0
     reasoning_effort: str | None = None
 

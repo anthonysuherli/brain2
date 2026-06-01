@@ -217,7 +217,7 @@ def validate_schema(schema: KGSchema) -> list[str]:
     # relation_validity: each source_type / target_type must name a declared node type.
     for rv in schema.relation_validity:
         for side, label in (("source_type", rv.source_type), ("target_type", rv.target_type)):
-            if label and label not in node_names:
+            if label not in node_names:
                 errors.append(f"relation_validity {side} '{label}' references undeclared node type")
     return errors
 

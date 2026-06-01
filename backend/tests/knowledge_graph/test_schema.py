@@ -59,6 +59,18 @@ def test_validate_schema_flags_empty_node_types():
     assert any("no node_types" in e for e in errors)
 
 
+def test_validate_schema_flags_empty_string_relation_validity():
+    schema = KGSchema.model_validate({
+        "node_types": [{"name": "service", "description": "s", "examples": [], "attributes": [], "layer": ""}],
+        "relation_types": [{"name": "calls", "description": "x calls y"}],
+        "relation_validity": [{"source_type": "", "target_type": "service"}],
+        "competency_questions": [],
+        "regime": "soft",
+    })
+    errors = validate_schema(schema)
+    assert len(errors) > 0
+
+
 def test_validate_schema_flags_duplicate_attribute_name():
     schema = KGSchema.model_validate({
         "node_types": [{"name": "service", "description": "a service", "examples": [],
