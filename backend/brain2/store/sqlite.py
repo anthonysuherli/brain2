@@ -78,6 +78,10 @@ CREATE INDEX IF NOT EXISTS idx_findings_kb ON findings(kb_id);
 CREATE INDEX IF NOT EXISTS idx_kg_nodes_kb ON kg_nodes(kb_id);
 CREATE INDEX IF NOT EXISTS idx_kg_nodes_dedupe ON kg_nodes(kb_id, type, label);
 CREATE INDEX IF NOT EXISTS idx_kg_edges_kb ON kg_edges(kb_id);
+CREATE TABLE IF NOT EXISTS kg_schemas (
+  id TEXT PRIMARY KEY, org_id TEXT NOT NULL, kb_id TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1, schema TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_kg_schemas_kb_version ON kg_schemas(kb_id, version);
 """
 
 # Cap on how many grounding finding ids a long-lived node (a repo touched for
@@ -713,6 +717,36 @@ class SQLiteStore:
             "by_type": by_type,
             "by_relation": by_relation,
         }
+
+    # --- KG intent schema (versioned) ----------------------------------------
+
+    def get_kg_intent(self, kb_id: str) -> dict | None:
+        """The KB's highest-version approved KG intent schema, or None if never set."""
+        r = self._conn.execute(
+            "SELECT version, schema FROM kg_schemas WHERE kb_id = ? ORDER BY version DESC LIMIT 1;",
+            (kb_id,),
+        ).fetchone()
+        if r is None:
+            return None
+        return {"version": r["version"], "schema": _json_load(r["schema"], {})}
+
+    def set_kg_intent(self, org_id: str, kb_id: str, schema: dict) -> dict:
+        """Persist an approved schema as the next version (never overwrites history).
+
+        Atomically reads the current max version for `kb_id` and inserts the next.
+        Returns ``{"version": <new>, "schema": <schema>}``."""
+        cur = self._conn.execute(
+            "SELECT version FROM kg_schemas WHERE kb_id = ? ORDER BY version DESC LIMIT 1;",
+            (kb_id,),
+        ).fetchone()
+        next_version = (cur["version"] if cur is not None else 0) + 1
+        self._conn.execute(
+            "INSERT INTO kg_schemas (id, org_id, kb_id, version, schema, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?);",
+            (uuid.uuid4().hex, org_id, kb_id, next_version, json.dumps(schema), _now_iso()),
+        )
+        self._conn.commit()
+        return {"version": next_version, "schema": schema}
 
     # --- monitoring — best-effort --------------------------------------------
 

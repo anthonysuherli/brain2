@@ -159,6 +159,24 @@ class Store(Protocol):
         by_relation``."""
         ...
 
+    # --- KG intent schema (versioned, approved target ontology) ---------------
+    # Stored in `kg_schemas` (one row per version, newest = active). `set`
+    # inserts the next version; `get` reads the highest. The KG builder reads
+    # `get` to steer extraction; a view pairs INTENT with EMERGENT ontology.
+
+    def get_kg_intent(self, kb_id: str) -> dict | None:
+        """The KB's highest-version approved KG intent schema, or None if never set.
+
+        Returns a dict with at least ``{version, schema}``."""
+        ...
+
+    def set_kg_intent(self, org_id: str, kb_id: str, schema: dict) -> dict:
+        """Persist an approved schema as the next version (never overwrites history).
+
+        Version is ``max(existing version for kb_id) + 1`` (first set = 1).
+        Returns a dict with at least ``{version, schema}``."""
+        ...
+
     # --- monitoring — best-effort --------------------------------------------
 
     async def record_access(

@@ -500,6 +500,47 @@ class SupabaseStore:
             "by_relation": by_relation,
         }
 
+    # --- KG intent schema (versioned) ----------------------------------------
+    # Mirrors divergence/knowledge_graph/service.py get_kg_intent/set_kg_intent.
+    # Writes go through the service client (tenancy already verified upstream);
+    # the explicit org_id/kb_id scoping is the invariant that keeps it tenant-safe.
+
+    def get_kg_intent(self, kb_id: str) -> dict | None:
+        """The KB's highest-version approved KG intent schema, or None if never set."""
+        rows = (
+            service_client()
+            .table("kg_schemas")
+            .select("version, schema")
+            .eq("kb_id", kb_id)
+            .order("version", desc=True)
+            .limit(1)
+            .execute()
+        ).data or []
+        if not rows or not isinstance(rows[0], dict):
+            return None
+        row = rows[0]
+        return {"version": row.get("version"), "schema": row.get("schema") or {}}
+
+    def set_kg_intent(self, org_id: str, kb_id: str, schema: dict) -> dict:
+        """Persist an approved schema as the next version (never overwrites history).
+
+        Reads the current max version for `kb_id`, inserts version+1.
+        Returns ``{"version": <new>, "schema": <schema>}``."""
+        sb = service_client()
+        cur = (
+            sb.table("kg_schemas")
+            .select("version")
+            .eq("kb_id", kb_id)
+            .order("version", desc=True)
+            .limit(1)
+            .execute()
+        ).data or []
+        next_version = (cur[0]["version"] if cur and isinstance(cur[0], dict) else 0) + 1
+        sb.table("kg_schemas").insert(
+            {"org_id": org_id, "kb_id": kb_id, "version": next_version, "schema": schema}
+        ).execute()
+        return {"version": next_version, "schema": schema}
+
     # --- monitoring — best-effort --------------------------------------------
 
     async def record_access(
