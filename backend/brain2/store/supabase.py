@@ -348,6 +348,32 @@ class SupabaseStore:
             {"properties": merged_props, "grounded_in": merged_grounded}
         ).eq("id", node_id).execute()
 
+    async def update_kg_node(
+        self,
+        kb_id: str,
+        node_id: str,
+        *,
+        properties: dict,
+        grounded_in: list[str] | None = None,
+        embedding: list[float] | None = None,
+    ) -> None:
+        """Overwrite a node's payload in place (wholesale `properties`; replace
+        `grounded_in` / re-index `embedding` only when given), matched by
+        ``id == node_id AND kb_id``."""
+        patch: dict = {"properties": properties}
+        if grounded_in is not None:
+            patch["grounded_in"] = list(grounded_in)[-_MAX_GROUNDED:]
+        if embedding is not None:
+            patch["embedding"] = list(embedding)
+        (
+            service_client()
+            .table("kg_nodes")
+            .update(patch)
+            .eq("id", node_id)
+            .eq("kb_id", kb_id)
+            .execute()
+        )
+
     async def upsert_kg_edges(self, kb_id: str, edges: list[dict]) -> int:
         """Insert edges, skipping self-loops, dangling ids, and existing triples."""
         if not edges:
@@ -459,7 +485,7 @@ class SupabaseStore:
         q = (
             service_client()
             .table("kg_nodes")
-            .select("id, type, label, properties, created_at")
+            .select("id, type, label, properties, grounded_in, created_at")
             .eq("kb_id", kb_id)
         )
         if self.org_id is not None:
