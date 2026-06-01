@@ -9,6 +9,7 @@ Best-effort and gated by BRAIN2_DISTILL_KG / BRAIN2_DISTILL_LLM.
 
 from __future__ import annotations
 
+import inspect
 import logging
 from dataclasses import dataclass
 from difflib import SequenceMatcher
@@ -16,7 +17,10 @@ from difflib import SequenceMatcher
 from pydantic import BaseModel, Field
 
 from brain2.clients.ai_gateway import structured_completion
-from brain2.config import ConceptConfig
+from brain2.clients.embeddings import embed_batch
+from brain2.config import ConceptConfig, get_config
+from brain2.exploration.merger import blended_confidence
+from brain2.store import Store
 
 logger = logging.getLogger(__name__)
 
@@ -98,3 +102,86 @@ def reconcile_action(
     ):
         return ReconcileAction(kind="reinforce", node_id=nearest["id"])
     return ReconcileAction(kind="new")
+
+
+# --- orchestration -----------------------------------------------------------
+
+
+async def _embed_claims(claims: list[str]) -> list[list[float]]:
+    """Seam so tests can stub embeddings."""
+    return await embed_batch(claims) if claims else []
+
+
+async def _select_findings(store: Store, kb_id: str, cfg: ConceptConfig) -> list[dict]:
+    """Phase A neighborhood = the KB's most recent findings (capped). Returns rows
+    WITH content (list_findings omits bodies, so fetch each via get_finding)."""
+    res = store.list_findings(kb_id, limit=cfg.neighborhood_cap)
+    rows = res["findings"] if isinstance(res, dict) else res
+    # If list rows already include 'content', use them directly; else fetch bodies.
+    if rows and "content" in rows[0]:
+        return list(rows)
+    return [store.get_finding(kb_id, r["id"]) for r in rows]
+
+
+async def distill_kb(store: Store, *, org_id: str, kb_id: str) -> dict:
+    """Run one distillation pass over kb_id. Returns counts.
+
+    select recent findings -> synthesize candidates -> for each, find the nearest
+    existing `concept` node semantically -> reconcile -> create a NEW concept or
+    REINFORCE an existing one (version bump, evidence union, refreshed body/conf)."""
+    cfg = get_config().concept
+    findings = await _select_findings(store, kb_id, cfg)
+    if not findings:
+        return {"concepts_created": 0, "concepts_reinforced": 0}
+
+    candidates = await synthesize(findings, cfg)
+    if not candidates:
+        return {"concepts_created": 0, "concepts_reinforced": 0}
+
+    evidence_ids = [f["id"] for f in findings]   # ground in what we actually fed in
+
+    res = _embed_claims([c.claim for c in candidates])
+    embeddings = await res if inspect.isawaitable(res) else res
+
+    created = reinforced = 0
+    for i, cand in enumerate(candidates):
+        emb = embeddings[i] if i < len(embeddings) else None
+        nearest, sim = None, 0.0
+        if emb is not None:
+            hits = await store.match_kg_nodes(
+                kb_id, emb, match_count=1, min_similarity=cfg.reconcile_min_sim
+            )
+            hits = [h for h in hits if h.get("type") == "concept"]
+            if hits:
+                nearest, sim = hits[0], hits[0]["similarity"]
+
+        action = reconcile_action(cand, nearest=nearest, similarity=sim, cfg=cfg)
+        if action.kind == "reinforce" and action.node_id:
+            existing = next(
+                (n for n in store.list_kg_nodes(kb_id, type="concept")
+                 if n["id"] == action.node_id), None,
+            )
+            props = dict((existing or {}).get("properties") or {})
+            prev_ev = list((existing or {}).get("grounded_in") or [])
+            merged_ev = list(dict.fromkeys([*prev_ev, *evidence_ids]))
+            props["version"] = int(props.get("version", 1)) + 1
+            props["body"] = cand.body or props.get("body", "")
+            props["confidence"] = blended_confidence(len(merged_ev), 1.0)
+            await store.update_kg_node(
+                kb_id, action.node_id,
+                properties=props, grounded_in=merged_ev, embedding=emb,
+            )
+            reinforced += 1
+        else:
+            await store.upsert_kg_nodes(kb_id, [{
+                "org_id": org_id, "type": "concept", "label": cand.claim,
+                "properties": {
+                    "body": cand.body, "version": 1, "status": "active",
+                    "confidence": blended_confidence(len(evidence_ids), 1.0),
+                    "source_kbs": [kb_id],
+                },
+                "grounded_in": evidence_ids, "embedding": emb,
+            }])
+            created += 1
+
+    return {"concepts_created": created, "concepts_reinforced": reinforced}
