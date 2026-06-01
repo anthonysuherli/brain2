@@ -98,7 +98,7 @@ class TiersConfig(BaseModel):
 
 class SynopsisConfig(BaseModel):
     model: str = "claude-haiku-4-5"
-    rebuild_delta: int = 5   # snapshots accumulate faster than research findings
+    rebuild_delta: int = 5  # snapshots accumulate faster than research findings
     rebuild_max_age_hours: int = 168
     max_entries: int = 6
 
@@ -169,6 +169,22 @@ class ActivityConfig(BaseModel):
     rollup_sessions: int = 6
 
 
+class KnowledgeGraphConfig(BaseModel):
+    """KG intent schema — proposer + validator knobs.
+
+    Model slugs use the Vercel AI Gateway dotted format (same as ExplorationConfig)
+    because the proposer runs as a pipeline pass through the gateway.
+    """
+
+    extraction_model: str = "anthropic/claude-sonnet-4.6"
+    extraction_fallback_model: str = "openai/gpt-5.4-mini"
+    temperature: float = 0.0
+    reasoning_effort: str | None = None
+
+    max_findings: int = 120  # cap on findings fed to the schema proposer
+    max_finding_chars: int = 1200  # per-finding content truncation in the prompt
+
+
 class PublicApiConfig(BaseModel):
     preamble_default_limit: int = 12
     preamble_max_limit: int = 40
@@ -199,6 +215,7 @@ class AppConfig(BaseModel):
     exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
     embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
     activity: ActivityConfig = Field(default_factory=ActivityConfig)
+    knowledge_graph: KnowledgeGraphConfig = Field(default_factory=KnowledgeGraphConfig)
     public_api: PublicApiConfig = Field(default_factory=PublicApiConfig)
     monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
 
@@ -229,7 +246,7 @@ def _env_overrides() -> dict:
     for key, value in os.environ.items():
         if not key.startswith(_ENV_PREFIX) or _NESTED_DELIM not in key:
             continue
-        section, _, field = key[len(_ENV_PREFIX):].partition(_NESTED_DELIM)
+        section, _, field = key[len(_ENV_PREFIX) :].partition(_NESTED_DELIM)
         if not section or not field:
             continue
         out.setdefault(section.lower(), {})[field.lower()] = value
