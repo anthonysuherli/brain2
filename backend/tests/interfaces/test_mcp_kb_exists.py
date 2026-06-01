@@ -1,8 +1,9 @@
 """Tests for brain2_kb_exists MCP tool — first-run guard.
 
 The tool must:
-  * Return {exists: True, ...} when resolve_tenant succeeds.
-  * Return {exists: False, ...} when resolve_tenant raises RuntimeError("... not found").
+  * Return {exists: True, init_offered: bool, ...} when resolve_tenant succeeds.
+  * Return {exists: False, init_offered: False, ...} when resolve_tenant raises
+    RuntimeError("... not found").
   * Re-raise on any other RuntimeError (fail-closed on genuine backend errors).
 """
 
@@ -16,9 +17,33 @@ from brain2.interfaces.mcp import server
 
 @pytest.mark.asyncio
 async def test_kb_exists_true_when_tenant_resolves():
-    with patch("brain2.interfaces.mcp.server.resolve_tenant", return_value=MagicMock()):
+    mock_store = MagicMock()
+    mock_store.get_init_offered.return_value = False
+    with (
+        patch("brain2.interfaces.mcp.server.resolve_tenant", return_value=MagicMock()),
+        patch("brain2.interfaces.mcp.server.get_store", return_value=mock_store),
+    ):
         result = await server.brain2_kb_exists("my-project", "my-kb")
-    assert result == {"exists": True, "project": "my-project", "kb": "my-kb"}
+    assert result == {
+        "exists": True,
+        "init_offered": False,
+        "project": "my-project",
+        "kb": "my-kb",
+    }
+
+
+@pytest.mark.asyncio
+async def test_kb_exists_true_includes_init_offered_true():
+    """init_offered=True when the stamp is set."""
+    mock_store = MagicMock()
+    mock_store.get_init_offered.return_value = True
+    with (
+        patch("brain2.interfaces.mcp.server.resolve_tenant", return_value=MagicMock()),
+        patch("brain2.interfaces.mcp.server.get_store", return_value=mock_store),
+    ):
+        result = await server.brain2_kb_exists("my-project", "my-kb")
+    assert result["exists"] is True
+    assert result["init_offered"] is True
 
 
 @pytest.mark.asyncio
@@ -28,7 +53,12 @@ async def test_kb_exists_false_when_not_found():
         side_effect=RuntimeError("kb my-kb not found"),
     ):
         result = await server.brain2_kb_exists("my-project", "my-kb")
-    assert result == {"exists": False, "project": "my-project", "kb": "my-kb"}
+    assert result == {
+        "exists": False,
+        "init_offered": False,
+        "project": "my-project",
+        "kb": "my-kb",
+    }
 
 
 @pytest.mark.asyncio

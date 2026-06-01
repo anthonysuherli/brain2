@@ -575,6 +575,38 @@ class SupabaseStore:
         ).execute()
         return {"version": next_version, "schema": schema}
 
+    # --- first-run offer-once stamp ------------------------------------------
+
+    def get_init_offered(self, kb_id: str) -> bool:
+        """Return True iff the wizard has already been offered for `kb_id`."""
+        try:
+            rows = (
+                service_client()
+                .table("kbs")
+                .select("init_offered_at")
+                .eq("id", kb_id)
+                .limit(1)
+                .execute()
+            ).data or []
+            if rows and isinstance(rows[0], dict):
+                return bool(rows[0].get("init_offered_at"))
+        except Exception:  # noqa: BLE001 — best-effort
+            pass
+        return False
+
+    def mark_init_offered(self, kb_id: str) -> None:
+        """Stamp `kb_id` with the time the KG schema wizard was offered.
+
+        Uses the service client (KB ownership already verified by resolve_tenant
+        upstream). Silently no-ops on error so a missing migration never breaks
+        the session."""
+        try:
+            service_client().table("kbs").update(
+                {"init_offered_at": _now_iso()}
+            ).eq("id", kb_id).execute()
+        except Exception:  # noqa: BLE001 — best-effort, never raise
+            pass
+
     # --- monitoring — best-effort --------------------------------------------
 
     async def record_access(

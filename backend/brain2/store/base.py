@@ -186,6 +186,23 @@ class Store(Protocol):
         Returns a dict with at least ``{version, schema}``."""
         ...
 
+    # --- first-run offer-once stamp ------------------------------------------
+
+    def get_init_offered(self, kb_id: str) -> bool:
+        """Return True iff the KG schema wizard has already been offered for `kb_id`.
+
+        Reads ``init_offered_at``; returns False when the column is absent or
+        null (pre-migration, or wizard not yet offered)."""
+        ...
+
+    def mark_init_offered(self, kb_id: str) -> None:
+        """Stamp `kb_id` with the time the KG schema wizard was offered.
+
+        Called once — by ``brain2_mark_init_offered`` — after the first-run
+        schema offer is surfaced.  Prevents re-offering on subsequent sessions.
+        No-op if the column is absent (local tier before migration 0007)."""
+        ...
+
     # --- monitoring — best-effort --------------------------------------------
 
     async def record_access(

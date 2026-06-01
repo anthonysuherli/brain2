@@ -149,17 +149,44 @@ async def brain2_explore(
 async def brain2_kb_exists(project: str, kb: str) -> dict:
     """Cheap first-run guard: does a brain2 KB exist for this project/kb?
 
-    Never creates anything. Returns {exists: bool, project, kb}.
+    Never creates anything. Returns {exists: bool, init_offered: bool, project, kb}.
+    ``init_offered`` is True when the KG schema wizard has already been offered
+    (migration 0007 stamp) — callers use this to skip the re-offer.
     On genuine backend errors (non-"not found" RuntimeErrors), RAISES so the
     caller fails closed — don't silently return exists=False on a backend outage.
     """
     try:
-        resolve_tenant(project, kb, create=False)
-        return {"exists": True, "project": project, "kb": kb}
+        ctx = resolve_tenant(project, kb, create=False)
+        store = get_store(ctx.access_token, org_id=ctx.org_id)
+        init_offered = store.get_init_offered(ctx.kb_id)
+        return {
+            "exists": True,
+            "init_offered": init_offered,
+            "project": project,
+            "kb": kb,
+        }
     except RuntimeError as exc:
         if "not found" in str(exc).lower():
-            return {"exists": False, "project": project, "kb": kb}
+            return {"exists": False, "init_offered": False, "project": project, "kb": kb}
         raise
+
+
+@mcp.tool()
+async def brain2_mark_init_offered(project: str, kb: str) -> dict:
+    """Stamp the KB with the time the KG schema wizard was offered.
+
+    Called exactly once after the first-run schema offer is surfaced — prevents
+    re-offering on subsequent SessionStart events. Safe to call even if migration
+    0007 has not been applied (best-effort, never raises).
+    Returns {marked: bool, project, kb}.
+    """
+    try:
+        ctx = resolve_tenant(project, kb, create=False)
+        store = get_store(ctx.access_token, org_id=ctx.org_id)
+        store.mark_init_offered(ctx.kb_id)
+        return {"marked": True, "project": project, "kb": kb}
+    except Exception:  # noqa: BLE001 — best-effort stamp; never fail the session
+        return {"marked": False, "project": project, "kb": kb}
 
 
 @mcp.tool()

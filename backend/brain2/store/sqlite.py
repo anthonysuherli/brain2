@@ -54,7 +54,8 @@ _SCHEMA = """
 CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY, org_id TEXT NOT NULL, name TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS kbs (
-  id TEXT PRIMARY KEY, org_id TEXT NOT NULL, project_id TEXT NOT NULL, name TEXT NOT NULL, created_at TEXT NOT NULL);
+  id TEXT PRIMARY KEY, org_id TEXT NOT NULL, project_id TEXT NOT NULL, name TEXT NOT NULL,
+  created_at TEXT NOT NULL, init_offered_at TEXT);
 CREATE TABLE IF NOT EXISTS findings (
   id TEXT PRIMARY KEY, org_id TEXT NOT NULL, kb_id TEXT NOT NULL,
   title TEXT, content TEXT, category TEXT, confidence REAL,
@@ -83,6 +84,14 @@ CREATE TABLE IF NOT EXISTS kg_schemas (
   version INTEGER NOT NULL DEFAULT 1, schema TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_kg_schemas_kb_version ON kg_schemas(kb_id, version);
 """
+
+# Post-schema migrations: ADD COLUMN statements for older DBs.
+# SQLite does not support ``IF NOT EXISTS`` on ALTER TABLE so we run each in its
+# own try/except inside ``_ensure_schema``.  The list grows with each migration.
+_ADD_COLUMN_MIGRATIONS: list[str] = [
+    # 0007: offer-once stamp (added when kbs table already exists in older DBs)
+    "ALTER TABLE kbs ADD COLUMN init_offered_at TEXT;",
+]
 
 # Cap on how many grounding finding ids a long-lived node (a repo touched for
 # months) accumulates — keep the most recent, so the column can't grow unbounded.
@@ -143,6 +152,16 @@ class SQLiteStore:
     def _ensure_schema(self) -> None:
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
+        # Run post-schema ADD COLUMN migrations idempotently.  SQLite raises
+        # ``OperationalError: duplicate column name`` when a column already exists
+        # (no ``IF NOT EXISTS`` support for ALTER TABLE).  We swallow those
+        # errors so re-opening an existing DB is always safe.
+        for stmt in _ADD_COLUMN_MIGRATIONS:
+            try:
+                self._conn.execute(stmt)
+                self._conn.commit()
+            except Exception:  # noqa: BLE001 — column already present
+                pass
 
     # --- findings — hot path -------------------------------------------------
 
@@ -780,6 +799,34 @@ class SQLiteStore:
         )
         self._conn.commit()
         return {"version": next_version, "schema": schema}
+
+    # --- first-run offer-once stamp ------------------------------------------
+
+    def get_init_offered(self, kb_id: str) -> bool:
+        """Return True iff the wizard has already been offered for `kb_id`."""
+        try:
+            r = self._conn.execute(
+                "SELECT init_offered_at FROM kbs WHERE id = ? LIMIT 1;", (kb_id,)
+            ).fetchone()
+            return bool(r and r["init_offered_at"])
+        except Exception:  # noqa: BLE001 — column absent on old DB
+            return False
+
+    def mark_init_offered(self, kb_id: str) -> None:
+        """Stamp `kb_id` with the init-offered timestamp.
+
+        The column ``init_offered_at`` is added by migration 0007; on an
+        older DB that hasn't been migrated the UPDATE silently no-ops (the
+        column is absent and SQLite raises ``OperationalError`` — swallowed
+        here so the local tier is always safe)."""
+        try:
+            self._conn.execute(
+                "UPDATE kbs SET init_offered_at = ? WHERE id = ?;",
+                (_now_iso(), kb_id),
+            )
+            self._conn.commit()
+        except Exception:  # noqa: BLE001 — column may not exist yet
+            pass
 
     # --- monitoring — best-effort --------------------------------------------
 
