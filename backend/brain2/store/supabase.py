@@ -365,14 +365,16 @@ class SupabaseStore:
             patch["grounded_in"] = list(grounded_in)[-_MAX_GROUNDED:]
         if embedding is not None:
             patch["embedding"] = list(embedding)
-        (
+        q = (
             service_client()
             .table("kg_nodes")
             .update(patch)
             .eq("id", node_id)
             .eq("kb_id", kb_id)
-            .execute()
         )
+        if self.org_id is not None:
+            q = q.eq("org_id", self.org_id)
+        q.execute()
 
     async def upsert_kg_edges(self, kb_id: str, edges: list[dict]) -> int:
         """Insert edges, skipping self-loops, dangling ids, and existing triples."""

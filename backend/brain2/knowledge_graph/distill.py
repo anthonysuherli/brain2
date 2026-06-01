@@ -1,10 +1,16 @@
 """Concept distillation — synthesize the concept tier from a KB's evidence.
 
-    select findings -> synthesize (LLM) -> evaluate (critic) -> reconcile -> upsert
+    select findings -> synthesize (LLM) -> reconcile -> upsert/update -> bind `about`
 
 Concepts are `kg_nodes type='concept'` living in the per-org activity KB, evidence
-via `grounded_in`, bound to activity via `about` edges. Phase A: new vs reinforce.
-Best-effort and gated by BRAIN2_DISTILL_KG / BRAIN2_DISTILL_LLM.
+via `grounded_in`, bound to activity via `about` edges. Phase A: new vs reinforce,
+driven manually (no triggers yet).
+
+Deferred to Phase B/C (NOT implemented here — do not assume they exist):
+  - env gates `BRAIN2_DISTILL_KG` / `BRAIN2_DISTILL_LLM` + fire-and-forget
+    try/except-swallow (land with the post-capture/explore trigger);
+  - the `evaluate (critic)` quality pass that sets the confidence `quality`
+    multiplier (currently hardcoded 1.0, so confidence reflects evidence count only).
 """
 
 from __future__ import annotations
