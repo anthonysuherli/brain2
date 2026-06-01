@@ -13,8 +13,9 @@ Ported from divergence's ``knowledge_graph/builder.py`` with three key adaptatio
    into ``nodes[]`` (set by the extractor). ``_resolve_edges`` maps those indices
    to persisted node IDs via the ``label_to_id`` map built during upsert.
 
-3. **clear_kg** — ``rebuild=True`` calls ``store.clear_kg(kb_id)`` instead of
-   two direct Supabase deletes; the store owns the table-access pattern.
+3. **clear_kg** — ``rebuild=True`` calls ``store.clear_kg(kb_id)`` *after*
+   extraction succeeds (not before); if extraction fails the old graph is
+   preserved. The store owns the table-access pattern.
 
 **YAGNI cuts (v1):**
 - ``refresh_project_description`` — not implemented; add as a follow-up when the
@@ -32,8 +33,8 @@ import logging
 from brain2.agent.state import TenantContext
 from brain2.clients.embeddings import embed_batch
 from brain2.config import get_config
-from brain2.knowledge_graph.extractor import _norm, extract_graph
-from brain2.knowledge_graph.models import KGExtraction, KGNode, KGSchema
+from brain2.knowledge_graph.extractor import norm, extract_graph
+from brain2.knowledge_graph.models import KGEdge, KGExtraction, KGNode, KGSchema
 from brain2.store import get_store
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ def _collapse_nodes(nodes: list[KGNode]) -> list[KGNode]:
     """
     merged: dict[str, KGNode] = {}
     for n in nodes:
-        key = _norm(n.label)
+        key = norm(n.label)
         if not key:
             continue
         if key in merged:
@@ -94,8 +95,8 @@ def _resolve_edges(extraction: KGExtraction, label_to_id: dict[str, str]) -> lis
     for e in extraction.edges:
         if e.source >= len(node_labels) or e.target >= len(node_labels):
             continue
-        src_key = _norm(node_labels[e.source])
-        tgt_key = _norm(node_labels[e.target])
+        src_key = norm(node_labels[e.source])
+        tgt_key = norm(node_labels[e.target])
         sid = label_to_id.get(src_key)
         tid = label_to_id.get(tgt_key)
         if not sid or not tid or sid == tid:
@@ -147,9 +148,10 @@ async def build_graph(
 ) -> dict:
     """Extract entities/relations from the KB's findings and persist them.
 
-    ``rebuild=True`` (default) clears the KB's existing nodes/edges first via
-    ``store.clear_kg(kb_id)`` — a clean, predictable manual rebuild. Node dedupe
-    via ``upsert_kg_nodes`` collapses near-duplicate entities within the pass.
+    ``rebuild=True`` (default) clears the KB's existing nodes/edges *after*
+    extraction succeeds, via ``store.clear_kg(kb_id)`` — if extraction fails the
+    old graph is preserved. Node dedupe via ``upsert_kg_nodes`` collapses
+    near-duplicate entities within the pass.
 
     ``use_schema=True`` (default) loads the KB's approved intent schema (if one
     was set via ``set_kg_intent``) and steers extraction with it as SOFT guidance;
@@ -186,7 +188,7 @@ async def build_graph(
 
     schema = _load_intent(store, ctx.kb_id) if use_schema else None
     extraction: KGExtraction = await extract_graph(findings, cfg, schema)
-    collapsed = _collapse_nodes(extraction.nodes)[: cfg.max_findings]
+    collapsed = _collapse_nodes(extraction.nodes)[: cfg.max_nodes]
 
     if rebuild:
         store.clear_kg(ctx.kb_id)
@@ -194,29 +196,27 @@ async def build_graph(
     # Build a parallel KGExtraction with collapsed nodes so _resolve_edges can
     # walk extraction.nodes by the same indices (after collapse, indices shift —
     # re-index edges against collapsed nodes).
-    collapsed_norm_set = {_norm(n.label) for n in collapsed}
+    collapsed_norm_set = {norm(n.label) for n in collapsed}
     # Remap original node indices → collapsed node indices (or None if dropped).
     orig_to_collapsed: dict[int, int] = {}
     for orig_idx, orig_node in enumerate(extraction.nodes):
-        k = _norm(orig_node.label)
+        k = norm(orig_node.label)
         if k in collapsed_norm_set:
             # Find position in collapsed list
             for ci, cn in enumerate(collapsed):
-                if _norm(cn.label) == k:
+                if norm(cn.label) == k:
                     orig_to_collapsed[orig_idx] = ci
                     break
 
     # Remap edges to collapsed indices.
-    from brain2.knowledge_graph.models import KGEdge as _KGEdge
-
-    remapped_edges: list[_KGEdge] = []
+    remapped_edges: list[KGEdge] = []
     for e in extraction.edges:
         si = orig_to_collapsed.get(e.source)
         ti = orig_to_collapsed.get(e.target)
         if si is None or ti is None or si == ti:
             continue
         remapped_edges.append(
-            _KGEdge(
+            KGEdge(
                 source=si, target=ti, relation=e.relation,
                 properties=e.properties, grounded_in=e.grounded_in,
             )
@@ -251,7 +251,7 @@ async def build_graph(
         nodes_created = len(node_ids)
 
         for nd, nid in zip(collapsed, node_ids):
-            label_to_id[_norm(nd.label)] = nid
+            label_to_id[norm(nd.label)] = nid
 
     # --- persist edges -------------------------------------------------------
     edges_created = 0

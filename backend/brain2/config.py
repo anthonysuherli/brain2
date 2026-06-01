@@ -183,6 +183,7 @@ class KnowledgeGraphConfig(BaseModel):
 
     max_findings: int = 120  # cap on findings fed to the schema proposer
     max_finding_chars: int = 1200  # per-finding content truncation in the prompt
+    max_nodes: int = 500  # cap on nodes kept after extraction collapse
 
 
 class PublicApiConfig(BaseModel):

@@ -241,7 +241,7 @@ def backfill_grounding(extraction: _LLMExtraction, findings: list[dict]) -> int:
 # ---------------------------------------------------------------------------
 
 
-def _norm(label: str) -> str:
+def norm(label: str) -> str:
     """Normalize a label: trim, lower, collapse whitespace."""
     return " ".join(label.strip().lower().split())
 
@@ -260,13 +260,13 @@ def _to_kg_extraction(llm: _LLMExtraction) -> KGExtraction:
         )
         for n in llm.nodes
     ]
-    label_to_idx: dict[str, int] = {_norm(n.label): i for i, n in enumerate(nodes)}
+    label_to_idx: dict[str, int] = {norm(n.label): i for i, n in enumerate(nodes)}
 
     edges: list[KGEdge] = []
     seen: set[tuple[int, int, str]] = set()
     for e in llm.edges:
-        si = label_to_idx.get(_norm(e.source))
-        ti = label_to_idx.get(_norm(e.target))
+        si = label_to_idx.get(norm(e.source))
+        ti = label_to_idx.get(norm(e.target))
         if si is None or ti is None or si == ti:
             continue
         key = (si, ti, e.relation)
