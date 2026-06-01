@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from brain2.knowledge_graph.schema import KGSchema, validate_schema
 
 
