@@ -176,8 +176,16 @@ SessionStart hook → repo identity → kb_exists?
    respected.
 5. **End-to-end** — fresh clone → launch → init → offer → wizard → built graph.
 
-## Open dependency
+## Implementation status
 
-brain2's MCP currently exposes only `capture`/`resume`/`explore`/`activity`.
-None of the `*_kg_schema` tools nor a graph-build tool are surfaced. The backend
-logic exists in the Divergence fork — the work is to surface it (step 1 above).
+**Completed 2026-06-01** on branch `feat/first-run-init`.
+
+The open dependency (KG backend port) was resolved: brain2's `knowledge_graph/`
+package now contains `schema.py` (models + proposer + validator), `extractor.py`
+(pure LLM extraction), and `builder.py` (store-routed orchestrator), ported from
+Divergence and adapted to brain2's `Store` abstraction. The MCP server exposes
+12 tools: the original 4 (`capture`, `resume`, `explore`, `activity`) plus 8 new
+ones (`kb_exists`, `mark_init_offered`, `propose_kg_schema`, `set_kg_schema`,
+`get_kg_schema`, `build_graph`, `graph`, `kg_stats`). The `hooks/hooks.json`
+SessionStart hook, `skills/_shared/kg-schema-wizard.md`, and
+`skills/_shared/project-init.md` are all shipped. 172 tests pass (+62 vs baseline).
