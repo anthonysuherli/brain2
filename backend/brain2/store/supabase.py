@@ -494,6 +494,21 @@ class SupabaseStore:
             q = q.eq("type", type)
         return q.order("created_at", desc=True).limit(n).execute().data or []
 
+    def get_kg_node(self, kb_id: str, node_id: str) -> dict | None:
+        """One node by id within `kb_id`, or None. Authoritative full-row read
+        (vs. the capped, recency-windowed list_kg_nodes) for re-distill."""
+        q = (
+            service_client()
+            .table("kg_nodes")
+            .select("id, type, label, properties, grounded_in")
+            .eq("id", node_id)
+            .eq("kb_id", kb_id)
+        )
+        if self.org_id is not None:
+            q = q.eq("org_id", self.org_id)
+        rows = q.limit(1).execute().data or []
+        return rows[0] if rows else None
+
     def kg_stats(self, kb_id: str) -> dict:
         """Node/edge totals + counts by node type and by relation."""
         sb = service_client()

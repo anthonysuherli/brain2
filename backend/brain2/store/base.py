@@ -169,6 +169,12 @@ class Store(Protocol):
         ``id, type, label, properties, created_at``."""
         ...
 
+    def get_kg_node(self, kb_id: str, node_id: str) -> dict | None:
+        """One node by id within `kb_id`, or None. Row carries the full decoded
+        ``id, type, label, properties, grounded_in`` — the authoritative read for
+        re-distilling a concept in place (versus a capped, recency-windowed list)."""
+        ...
+
     def kg_stats(self, kb_id: str) -> dict:
         """Graph totals + breakdowns: ``node_count, edge_count, by_type,
         by_relation``."""

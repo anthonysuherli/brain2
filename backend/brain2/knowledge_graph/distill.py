@@ -146,23 +146,25 @@ async def distill_kb(store: Store, *, org_id: str, kb_id: str) -> dict:
     created = reinforced = 0
     for i, cand in enumerate(candidates):
         emb = embeddings[i] if i < len(embeddings) else None
+        # Widen the candidate set (a non-concept activity node can be the rank-1
+        # neighbour), then pick the nearest CONCEPT.
         nearest, sim = None, 0.0
         if emb is not None:
             hits = await store.match_kg_nodes(
-                kb_id, emb, match_count=1, min_similarity=cfg.reconcile_min_sim
+                kb_id, emb, match_count=5, min_similarity=cfg.reconcile_min_sim
             )
-            hits = [h for h in hits if h.get("type") == "concept"]
-            if hits:
-                nearest, sim = hits[0], hits[0]["similarity"]
+            concept_hits = [h for h in hits if h.get("type") == "concept"]
+            if concept_hits:
+                nearest, sim = concept_hits[0], concept_hits[0]["similarity"]
 
         action = reconcile_action(cand, nearest=nearest, similarity=sim, cfg=cfg)
         if action.kind == "reinforce" and action.node_id:
-            existing = next(
-                (n for n in store.list_kg_nodes(kb_id, type="concept")
-                 if n["id"] == action.node_id), None,
-            )
-            props = dict((existing or {}).get("properties") or {})
-            prev_ev = list((existing or {}).get("grounded_in") or [])
+            # Read the full target by id — list_kg_nodes is capped + recency-windowed,
+            # so an older concept would scan to None and silently wipe its body/version.
+            # Fall back to `nearest` (carries properties), so the body is never zeroed.
+            existing = store.get_kg_node(kb_id, action.node_id) or nearest or {}
+            props = dict(existing.get("properties") or {})
+            prev_ev = list(existing.get("grounded_in") or [])
             merged_ev = list(dict.fromkeys([*prev_ev, *evidence_ids]))
             props["version"] = int(props.get("version", 1)) + 1
             props["body"] = cand.body or props.get("body", "")

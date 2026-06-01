@@ -719,6 +719,23 @@ class SQLiteStore:
             for r in rows
         ]
 
+    def get_kg_node(self, kb_id: str, node_id: str) -> dict | None:
+        """One node by id within `kb_id`, or None. Full decoded row — the
+        authoritative read for re-distilling a concept (unlike list_kg_nodes,
+        which is capped + recency-windowed and can miss an older target)."""
+        r = self._conn.execute(
+            "SELECT id, type, label, properties, grounded_in "
+            "FROM kg_nodes WHERE id = ? AND kb_id = ? LIMIT 1;",
+            (node_id, kb_id),
+        ).fetchone()
+        if r is None:
+            return None
+        return {
+            "id": r["id"], "type": r["type"], "label": r["label"],
+            "properties": _json_load(r["properties"], {}),
+            "grounded_in": _json_load(r["grounded_in"], []),
+        }
+
     def kg_stats(self, kb_id: str) -> dict:
         """Node/edge totals + counts by node type and by relation."""
         node_count = self._conn.execute(
