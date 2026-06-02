@@ -1,10 +1,10 @@
-"""Runtime configuration — adapted from Divergence for brain2.
+"""Runtime configuration — adapted from Delapan for brain2.
 
 Two layers:
 * ``Settings`` — secrets and infra (API keys, Supabase, CORS). From env / .env.
 * ``AppConfig`` — tunable knobs. From config.yaml + ``B2_<SECTION>__<FIELD>`` env overrides.
 
-brain2 shares the same Supabase instance as Divergence, so the infra env var
+brain2 shares the same Supabase instance as Delapan, so the infra env var
 names (SUPABASE_URL, OPENAI_API_KEY, etc.) are intentionally identical.
 """
 
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
         env_file=Path(__file__).resolve().parents[1] / ".env", extra="ignore"
     )
 
-    # Supabase (shared with Divergence). Optional: the free/local tier
+    # Supabase (shared with Delapan). Optional: the free/local tier
     # (BRAIN2_BACKEND=local, SQLite) boots with NONE of these set. The cloud
     # tier requires them — clients.supabase.service_client() raises a clear
     # error only when actually called without creds (not at import/Settings time).
@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     # brain2 REST API key — sent by VS Code extension in Authorization: Bearer
     brain2_api_key: str = Field(default="", alias="BRAIN2_API_KEY")
 
-    # MCP / KB auth (Supabase GoTrue user — shared with Divergence)
+    # MCP / KB auth (Supabase GoTrue user — shared with Delapan)
     mcp_user_email: str = Field(default="dev@divergence.local", alias="DVG_MCP_USER_EMAIL")
     mcp_user_password: str = Field(default="dev-password-123", alias="DVG_MCP_USER_PASSWORD")
 

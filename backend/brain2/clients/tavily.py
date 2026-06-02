@@ -1,4 +1,4 @@
-"""Tavily client — Phase 3 explore pipeline (adapted from Divergence)."""
+"""Tavily client — Phase 3 explore pipeline (adapted from Delapan)."""
 
 from __future__ import annotations
 

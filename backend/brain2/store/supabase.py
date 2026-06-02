@@ -286,10 +286,10 @@ class SupabaseStore:
         return projects
 
     # --- activity knowledge graph --------------------------------------------
-    # Reuses divergence's existing `kg_nodes`/`kg_edges` tables and the
+    # Reuses delapan's existing `kg_nodes`/`kg_edges` tables and the
     # `match_kg_nodes` RPC (migration 0003) — same instance, same schema. Writes
     # go through the service client (KG ownership is verified by tenancy first,
-    # mirroring divergence's builder). Dedupe is exact `(kb_id, type, label)`.
+    # mirroring delapan's builder). Dedupe is exact `(kb_id, type, label)`.
 
     async def upsert_kg_nodes(self, kb_id: str, nodes: list[dict]) -> list[str]:
         """Insert-or-merge nodes by exact ``(kb_id, type, label)``; ids in order."""
@@ -578,7 +578,7 @@ class SupabaseStore:
         }
 
     # --- KG intent schema (versioned) ----------------------------------------
-    # Mirrors divergence/knowledge_graph/service.py get_kg_intent/set_kg_intent.
+    # Mirrors delapan/knowledge_graph/service.py get_kg_intent/set_kg_intent.
     # Writes go through the service client (tenancy already verified upstream);
     # the explicit org_id/kb_id scoping is the invariant that keeps it tenant-safe.
 

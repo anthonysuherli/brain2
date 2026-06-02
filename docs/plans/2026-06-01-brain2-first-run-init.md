@@ -2,15 +2,15 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** When a user opens a repo brain2 has never seen, a SessionStart hook detects the first run, Claude dispatches a background subagent that seeds a repo-scoped KB (local crawl + bounded web), then offers Divergence's full 5-stage KG schema wizard.
+**Goal:** When a user opens a repo brain2 has never seen, a SessionStart hook detects the first run, Claude dispatches a background subagent that seeds a repo-scoped KB (local crawl + bounded web), then offers Delapan's full 5-stage KG schema wizard.
 
-**Architecture:** Three layers, built bottom-up. (1) **Backend port** — bring Divergence's KG schema/builder Python layer into brain2, adapted to brain2's `Store` abstraction. (2) **MCP surface** — expose `propose_kg_schema`, `set_kg_schema`, `get_kg_schema`, `build_graph`, `graph`, `kg_stats`, and a cheap `kb_exists`. (3) **Plugin surface** — a SessionStart hook, two shared skill docs (`project-init.md`, `kg-schema-wizard.md`), and the `plugin.json` wiring + an `init_offered_at` offer-once stamp.
+**Architecture:** Three layers, built bottom-up. (1) **Backend port** — bring Delapan's KG schema/builder Python layer into brain2, adapted to brain2's `Store` abstraction. (2) **MCP surface** — expose `propose_kg_schema`, `set_kg_schema`, `get_kg_schema`, `build_graph`, `graph`, `kg_stats`, and a cheap `kb_exists`. (3) **Plugin surface** — a SessionStart hook, two shared skill docs (`project-init.md`, `kg-schema-wizard.md`), and the `plugin.json` wiring + an `init_offered_at` offer-once stamp.
 
 **Tech Stack:** Python 3.11, FastMCP (`mcp.server.fastmcp`), Supabase (Postgres+pgvector) via brain2's `Store` abstraction (local/sqlite/supabase backends), pytest (asyncio_mode=auto), ruff, pyright. Plugin layer: Claude Code hooks + markdown skills.
 
 **Design doc:** `docs/plans/2026-06-01-brain2-first-run-init-design.md` (on `dev`).
 
-**Source of truth for the port:** `/Users/suherli/Repositories/divergence/backend/divergence/knowledge_graph/{schema,builder,extractor,service,models}.py` and `divergence/interfaces/mcp/server.py:378-520`. **Read those before each port task.** brain2 = `/Users/suherli/Repositories/brain2/backend`. Work in the worktree at `.worktrees/feat/first-run-init`.
+**Source of truth for the port:** `/Users/suherli/Repositories/delapan/backend/delapan/knowledge_graph/{schema,builder,extractor,service,models}.py` and `delapan/interfaces/mcp/server.py:378-520`. **Read those before each port task.** brain2 = `/Users/suherli/Repositories/brain2/backend`. Work in the worktree at `.worktrees/feat/first-run-init`.
 
 ---
 
@@ -49,13 +49,13 @@ Expected: `kg_schemas` resolves (non-null). If null, the migrations aren't appli
 
 ## Phase 1 — Backend port (KG schema + builder)
 
-The foundation. Everything else is blocked on this. Port from Divergence, adapt to brain2's `Store`. **Keep `exploration/`-style purity where Divergence has it** — `schema.py` and `extractor.py` are pure (no Supabase); `service.py` and `builder.py` own persistence.
+The foundation. Everything else is blocked on this. Port from Delapan, adapt to brain2's `Store`. **Keep `exploration/`-style purity where Delapan has it** — `schema.py` and `extractor.py` are pure (no Supabase); `service.py` and `builder.py` own persistence.
 
 ### Task 1: Port KG schema models + proposer (`schema.py`)
 
 **Files:**
-- Read: `divergence/knowledge_graph/schema.py` (the Divergence original, 220 lines)
-- Read: `divergence/knowledge_graph/models.py` (for `KGSchema`, `NodeType`, `RelationType` shapes)
+- Read: `delapan/knowledge_graph/schema.py` (the Delapan original, 220 lines)
+- Read: `delapan/knowledge_graph/models.py` (for `KGSchema`, `NodeType`, `RelationType` shapes)
 - Create: `backend/brain2/knowledge_graph/schema.py`
 - Modify: `backend/brain2/knowledge_graph/models.py` (add `KGSchema` + supporting models if not already present)
 - Test: `backend/tests/knowledge_graph/test_schema.py`
@@ -102,7 +102,7 @@ Expected: FAIL — `ModuleNotFoundError: brain2.knowledge_graph.schema`.
 
 **Step 3: Port the implementation**
 
-Copy `divergence/knowledge_graph/schema.py` → `brain2/knowledge_graph/schema.py`. Change imports: `divergence.*` → `brain2.*`. Confirm `propose_schema` reads the LLM client the same way brain2's `exploration/` does (check `brain2/clients/` for the gateway client — match brain2's slug convention, not Divergence's). Add `KGSchema` + sub-models to `brain2/knowledge_graph/models.py` if not re-exported.
+Copy `delapan/knowledge_graph/schema.py` → `brain2/knowledge_graph/schema.py`. Change imports: `delapan.*` → `brain2.*`. Confirm `propose_schema` reads the LLM client the same way brain2's `exploration/` does (check `brain2/clients/` for the gateway client — match brain2's slug convention, not Delapan's). Add `KGSchema` + sub-models to `brain2/knowledge_graph/models.py` if not re-exported.
 
 **Step 4: Run test to verify it passes**
 
@@ -114,7 +114,7 @@ Expected: PASS (both tests).
 ```bash
 cd backend && ruff check brain2/knowledge_graph/schema.py brain2/knowledge_graph/models.py && ruff format brain2/knowledge_graph/schema.py
 git add backend/brain2/knowledge_graph/schema.py backend/brain2/knowledge_graph/models.py backend/tests/knowledge_graph/test_schema.py
-git commit -m "feat(kg): port KG intent schema models + validator from divergence"
+git commit -m "feat(kg): port KG intent schema models + validator from delapan"
 ```
 
 ---
@@ -122,13 +122,13 @@ git commit -m "feat(kg): port KG intent schema models + validator from divergenc
 ### Task 2: Add KG-schema persistence to the Store (`service.py` → Store methods)
 
 **Files:**
-- Read: `divergence/knowledge_graph/service.py:130-180` (the `kg_schema`, `set_kg_intent`, `kg_schema_view` functions — they call `sb.table("kg_schemas")` directly)
+- Read: `delapan/knowledge_graph/service.py:130-180` (the `kg_schema`, `set_kg_intent`, `kg_schema_view` functions — they call `sb.table("kg_schemas")` directly)
 - Modify: `backend/brain2/store/base.py` (add abstract methods)
 - Modify: `backend/brain2/store/supabase.py` (implement against `kg_schemas`)
 - Modify: `backend/brain2/store/sqlite.py` (local-tier parity — a `kg_schemas` table)
 - Test: `backend/tests/store/test_kg_schema_store.py`
 
-Divergence's `service.py` hits `sb.table(...)` directly. brain2 routes through `Store`, so the persistence becomes **store methods**: `get_kg_intent(kb_id) -> dict | None` (max version), `set_kg_intent(org_id, kb_id, schema) -> dict` (insert version+1), and reuse existing `kg_stats`/`list_kg_nodes` for the `emergent` half of `kg_schema_view`.
+Delapan's `service.py` hits `sb.table(...)` directly. brain2 routes through `Store`, so the persistence becomes **store methods**: `get_kg_intent(kb_id) -> dict | None` (max version), `set_kg_intent(org_id, kb_id, schema) -> dict` (insert version+1), and reuse existing `kg_stats`/`list_kg_nodes` for the `emergent` half of `kg_schema_view`.
 
 **Step 1: Write the failing test (sqlite backend — no network)**
 
@@ -165,7 +165,7 @@ Expected: FAIL — `AttributeError: ... has no attribute 'set_kg_intent'`.
 **Step 3: Implement**
 
 - `base.py`: declare `get_kg_intent` / `set_kg_intent` abstract.
-- `supabase.py`: port from Divergence `service.py` — `set` inserts `{org_id, kb_id, version: max+1, schema}`; `get` selects max version. Writes via service client (per the 0005 migration comment).
+- `supabase.py`: port from Delapan `service.py` — `set` inserts `{org_id, kb_id, version: max+1, schema}`; `get` selects max version. Writes via service client (per the 0005 migration comment).
 - `sqlite.py`: add a `kg_schemas(kb_id, version, schema_json, created_at)` table in `_ensure_schema`; implement both methods.
 
 **Step 4: Run to verify it passes**
@@ -185,7 +185,7 @@ git commit -m "feat(store): kg_schemas persistence (get/set intent, versioned) a
 ### Task 3: Port the extractor + builder (`extractor.py`, `builder.py`)
 
 **Files:**
-- Read: `divergence/knowledge_graph/extractor.py` (219), `divergence/knowledge_graph/builder.py` (313)
+- Read: `delapan/knowledge_graph/extractor.py` (219), `delapan/knowledge_graph/builder.py` (313)
 - Create: `backend/brain2/knowledge_graph/extractor.py`
 - Create: `backend/brain2/knowledge_graph/builder.py`
 - Test: `backend/tests/knowledge_graph/test_builder.py`
@@ -221,7 +221,7 @@ Expected: FAIL — module/function missing.
 
 **Step 3: Port the implementation**
 
-Copy both files, rewrite imports `divergence.*` → `brain2.*`, and replace direct `service_client()` persistence with `get_store(ctx.access_token, org_id=ctx.org_id)` calls (`upsert_kg_nodes`, `upsert_kg_edges`, `match_kg_nodes`, finding reads). Drop Divergence's `refresh_project_description` for v1 (YAGNI — note it as a follow-up). Keep `grounded_in` provenance (the 0006 columns exist).
+Copy both files, rewrite imports `delapan.*` → `brain2.*`, and replace direct `service_client()` persistence with `get_store(ctx.access_token, org_id=ctx.org_id)` calls (`upsert_kg_nodes`, `upsert_kg_edges`, `match_kg_nodes`, finding reads). Drop Delapan's `refresh_project_description` for v1 (YAGNI — note it as a follow-up). Keep `grounded_in` provenance (the 0006 columns exist).
 
 **Step 4: Run to verify it passes**
 
@@ -295,17 +295,17 @@ git commit -m "feat(mcp): brain2_kb_exists guard for first-run detection"
 ### Task 5: Surface the KG-schema + build MCP tools
 
 **Files:**
-- Read: `divergence/interfaces/mcp/server.py:378-520` (the tool bodies)
+- Read: `delapan/interfaces/mcp/server.py:378-520` (the tool bodies)
 - Modify: `backend/brain2/interfaces/mcp/server.py`
 - Test: `backend/tests/interfaces/test_mcp_kg_tools.py`
 
-Add five tools mirroring Divergence, renamed `brain2_*`, routed through brain2's store/builder: `brain2_propose_kg_schema`, `brain2_set_kg_schema`, `brain2_get_kg_schema`, `brain2_build_graph`, `brain2_graph`, `brain2_kg_stats`. Reuse `KGSchema.model_validate` + `validate_schema` in `set` (Task 1), `set_kg_intent`/`get_kg_intent` (Task 2), `build_graph` (Task 3).
+Add five tools mirroring Delapan, renamed `brain2_*`, routed through brain2's store/builder: `brain2_propose_kg_schema`, `brain2_set_kg_schema`, `brain2_get_kg_schema`, `brain2_build_graph`, `brain2_graph`, `brain2_kg_stats`. Reuse `KGSchema.model_validate` + `validate_schema` in `set` (Task 1), `set_kg_intent`/`get_kg_intent` (Task 2), `build_graph` (Task 3).
 
 **Step 1: Failing test** — `brain2_set_kg_schema` rejects a malformed schema with `{ok: False, errors: [...]}` and accepts a clean one (mock the store's `set_kg_intent`).
 
 **Step 2: Run → FAIL.**
 
-**Step 3: Implement** the six tools, copying Divergence's docstrings (adjust tool names + brain2 substrate language: "findings" stay findings). `propose` reads findings via the store; `build_graph` calls `builder.build_graph(ctx, ...)`.
+**Step 3: Implement** the six tools, copying Delapan's docstrings (adjust tool names + brain2 substrate language: "findings" stay findings). `propose` reads findings via the store; `build_graph` calls `builder.build_graph(ctx, ...)`.
 
 **Step 4: Run → PASS.**
 
@@ -339,15 +339,15 @@ Expected: no *new* failures vs the Pre-flight baseline.
 ### Task 7: Port the KG schema wizard as a shared skill doc
 
 **Files:**
-- Read: `/Users/suherli/Repositories/divergence/skills/graph/schema.md` (the 5-stage wizard — the canonical source)
+- Read: `/Users/suherli/Repositories/delapan/skills/graph/schema.md` (the 5-stage wizard — the canonical source)
 - Create: `skills/_shared/kg-schema-wizard.md`
 
-Near-verbatim port. Substrate adaptations: (1) MCP tool names `mcp__divergence__divergence_*` → `mcp__brain2__brain2_*`; (2) "the KB's findings" stays (brain2 findings); (3) Stage 0 mode-select calls `brain2_get_kg_schema`; (4) Stage 5 build calls `brain2_build_graph(use_schema=True, rebuild=True)`; (5) drop references to divergence-only skills (`/divergence:build explore` → `/brain2:explore`; `/divergence:maintain` → omit or map to nearest brain2 verb). Keep all five stages, the one-question-at-a-time `AskUserQuestion` discipline, and the Reconfigure flow.
+Near-verbatim port. Substrate adaptations: (1) MCP tool names `mcp__delapan__delapan_*` → `mcp__brain2__brain2_*`; (2) "the KB's findings" stays (brain2 findings); (3) Stage 0 mode-select calls `brain2_get_kg_schema`; (4) Stage 5 build calls `brain2_build_graph(use_schema=True, rebuild=True)`; (5) drop references to delapan-only skills (`/delapan:build explore` → `/brain2:explore`; `/delapan:maintain` → omit or map to nearest brain2 verb). Keep all five stages, the one-question-at-a-time `AskUserQuestion` discipline, and the Reconfigure flow.
 
-**Verify:** Read the finished doc end-to-end; confirm every tool name resolves to a real `brain2_*` tool from Task 5, and no `divergence:` skill references remain.
+**Verify:** Read the finished doc end-to-end; confirm every tool name resolves to a real `brain2_*` tool from Task 5, and no `delapan:` skill references remain.
 
 ```bash
-grep -n "divergence" skills/_shared/kg-schema-wizard.md   # expect: no matches
+grep -n "delapan" skills/_shared/kg-schema-wizard.md   # expect: no matches
 git add skills/_shared/kg-schema-wizard.md
 git commit -m "docs(skill): port 5-stage KG schema wizard to brain2 substrate"
 ```
@@ -492,8 +492,8 @@ git commit -m "docs: mark KG backend port complete; first-run init verified end-
 
 ## Notes for the implementer
 
-- **Slug convention:** brain2's chat/agent path and pipeline path may use different model-slug formats (dots vs hyphens) like Divergence does. When porting `propose_schema`/`extractor` LLM calls, match **brain2's** existing `exploration/` client usage — do not copy Divergence's slugs.
-- **Store routing is the #1 porting hazard.** Divergence calls `service_client()` inline; brain2 *must* go through `get_store(...)`. Every `sb.table(...)` in the Divergence source becomes a store method call. Tasks 2 and 3 are where this bites.
-- **Local tier parity:** brain2 has a local/sqlite backend Divergence lacks. KG-schema persistence (Task 2) needs the sqlite path or the wizard breaks for local users. Builder persistence (Task 3) already has `upsert_kg_nodes/edges` in both backends — verify the sqlite versions exist and work.
+- **Slug convention:** brain2's chat/agent path and pipeline path may use different model-slug formats (dots vs hyphens) like Delapan does. When porting `propose_schema`/`extractor` LLM calls, match **brain2's** existing `exploration/` client usage — do not copy Delapan's slugs.
+- **Store routing is the #1 porting hazard.** Delapan calls `service_client()` inline; brain2 *must* go through `get_store(...)`. Every `sb.table(...)` in the Delapan source becomes a store method call. Tasks 2 and 3 are where this bites.
+- **Local tier parity:** brain2 has a local/sqlite backend Delapan lacks. KG-schema persistence (Task 2) needs the sqlite path or the wizard breaks for local users. Builder persistence (Task 3) already has `upsert_kg_nodes/edges` in both backends — verify the sqlite versions exist and work.
 - **YAGNI cuts:** skip `refresh_project_description`, incremental build, and `communities` for v1. Note them as follow-ups, don't build them.
 - **DRY:** the wizard doc (Task 7) is the *only* copy of the 5-stage flow — `project-init.md` points to it, doesn't restate it.

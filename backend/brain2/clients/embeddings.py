@@ -1,4 +1,4 @@
-"""Embedding client (adapted from Divergence)."""
+"""Embedding client (adapted from Delapan)."""
 
 from __future__ import annotations
 

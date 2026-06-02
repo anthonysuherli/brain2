@@ -1,4 +1,4 @@
-"""Anthropic client wrapper — used for synopsis rebuild (adapted from Divergence)."""
+"""Anthropic client wrapper — used for synopsis rebuild (adapted from Delapan)."""
 
 from __future__ import annotations
 

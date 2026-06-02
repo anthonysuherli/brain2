@@ -1,6 +1,6 @@
 """Graph data models — the carriers between extraction and the Store.
 
-Ported from divergence's KG models (the only piece of that layer brain2 reuses).
+Ported from delapan's KG models (the only piece of that layer brain2 reuses).
 ``properties`` are free-form dicts; an ``embedding`` rides along on a node so the
 Store can persist it for semantic subgraph seeding. Dedupe is by exact
 ``(type, label)`` at the Store, so these models stay pure data.
@@ -18,10 +18,10 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
-# KG intent schema (ported + adapted from divergence — list-of-objects variant)
+# KG intent schema (ported + adapted from delapan — list-of-objects variant)
 # ---------------------------------------------------------------------------
 
-# Valid attribute value types — same set as divergence.
+# Valid attribute value types — same set as delapan.
 _ATTR_TYPES: tuple[str, ...] = ("text", "number", "date", "url", "list", "bool")
 
 
@@ -77,7 +77,7 @@ class KGSchema(BaseModel):
     node_types: list[NodeType] = Field(default_factory=list)
     relation_types: list[RelationType] = Field(default_factory=list)
     # Flat list of legal source→target pairs across ALL relations.
-    # (Divergence uses dict[relation_name, list[str]]; brain2 uses a flat list
+    # (Delapan uses dict[relation_name, list[str]]; brain2 uses a flat list
     # of typed objects so the shape is uniform and JSONB-friendly.)
     relation_validity: list[RelationValidity] = Field(default_factory=list)
     competency_questions: list[str] = Field(default_factory=list)

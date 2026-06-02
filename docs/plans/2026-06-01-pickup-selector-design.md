@@ -39,7 +39,7 @@ Call `brain2_projects`, render most-recent-first, mark the current repo+branch:
 Where do you want to pick up?
   1. brain2 · dev        2h ago    12 snapshots   ← you are here
   2. brain2 · main       1d ago     4 snapshots
-  3. divergence · main   3d ago     9 snapshots
+  3. delapan · main   3d ago     9 snapshots
 ```
 
 User picks a row (number or name) → `brain2_resume(project, kb)` → standard card.

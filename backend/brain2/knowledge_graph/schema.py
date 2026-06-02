@@ -12,7 +12,7 @@ in v1: the schema steers extraction but never forces out-of-schema signal to be
 dropped (the extractor keeps it as type "other"). Authoring never raises — a model
 hiccup falls back to a deterministic proposal.
 
-Ported from divergence's ``knowledge_graph/schema.py`` with two adaptations:
+Ported from delapan's ``knowledge_graph/schema.py`` with two adaptations:
 1. ``relation_validity`` is a flat ``list[RelationValidity]`` (typed objects)
    rather than a ``dict[str, list[str]]`` — cleaner JSONB storage.
 2. LLM calls route through brain2's AI Gateway client (dotted model slugs:

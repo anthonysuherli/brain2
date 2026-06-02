@@ -10,7 +10,7 @@ itself automatically**: a `SessionStart` hook detects the first run, Claude
 dispatches a background subagent that seeds a repo-scoped KB from local context
 (repo + git + project metadata) plus a small bounded web-enrichment pass, and —
 once seeding completes — offers to set up the knowledge-graph schema by running
-**Divergence's full 5-stage schema wizard**.
+**Delapan's full 5-stage schema wizard**.
 
 This is brain2's **first hook**. The plugin ships only skills today
 (`resume`, `capture`, `search`, `explore`, `activity`) with no hooks and no
@@ -24,14 +24,14 @@ commands.
   background; the schema offer arrives at a turn boundary.
 - Ground the KG schema in real, freshly-ingested findings so the wizard's draft
   ontology is repo-specific from the first question.
-- Reuse Divergence's existing schema co-design wizard verbatim (substrate-adapted),
+- Reuse Delapan's existing schema co-design wizard verbatim (substrate-adapted),
   not a bespoke shortcut.
 
 ## Non-goals (v1)
 
 - Per-branch initialization. Init is **repo-scoped**; branches share the
   repo-level KB/schema. Per-branch session state (snapshots/resume) layers on top.
-- Incremental KG build (Divergence's build is full-rebuild only today).
+- Incremental KG build (Delapan's build is full-rebuild only today).
 - Detect-and-resume of a half-finished init. A crashed init falls through to the
   existing `coverage='gap'` → `/brain2:explore` recovery path.
 - Re-offering the schema setup on every launch. Offer **once**, then go quiet.
@@ -43,7 +43,7 @@ commands.
 | Launch model | Hook injects a first-run **directive**; Claude dispatches the init subagent (`Agent`, `run_in_background`). Keeps init in-conversation, orchestrated, interactive. |
 | First-run detection | **KB existence = source of truth, repo-scoped.** No marker files; the KB itself is the state and the lock. |
 | Init depth | **Local crawl + light web enrichment** (bounded Phase B). |
-| Schema offer | Run **Divergence's full 5-stage wizard** (`divergence:graph schema`), multi-step `AskUserQuestion` co-design — not a one-click auto-set. |
+| Schema offer | Run **Delapan's full 5-stage wizard** (`delapan:graph schema`), multi-step `AskUserQuestion` co-design — not a one-click auto-set. |
 | Offer timing | Announce one line on launch; **offer at the next turn boundary** when the background subagent completes. Never mid-edit, never blocking. |
 | Re-offer policy | **Offer once**, stamp `init_offered_at`; then quiet. Wizard remains available on demand. |
 
@@ -93,12 +93,12 @@ a concurrent second session's existence-check then sees "exists" and backs off.
 (local vs web), draft-ready flag. As a background subagent, this surfaces to the
 main loop as a tool-completion notification, not mid-edit.
 
-### Schema offer — Divergence's 5-stage wizard (ported)
+### Schema offer — Delapan's 5-stage wizard (ported)
 
 On subagent completion, Claude surfaces a one-line turn-boundary offer:
 *"brain2 finished initializing this repo (N findings). Want to set up its
 knowledge-graph schema?"* On **yes**, run the exact wizard from
-`divergence/skills/graph/schema.md`, substrate-adapted (Divergence grounds on a
+`delapan/skills/graph/schema.md`, substrate-adapted (Delapan grounds on a
 KB's findings; here the findings are the ones init just seeded):
 
 1. **Reconnaissance (silent)** — `propose_kg_schema` → DRAFT ontology
@@ -142,8 +142,8 @@ KB's findings; here the findings are the ones init just seeded):
 | `skills/_shared/init-hook.py` (or `.sh`) | hook script | SessionStart guard: repo identity → `kb_exists` → inject directive or exit silent |
 | `.claude-plugin/plugin.json` | manifest | add brain2's first `hooks` entry (SessionStart → guard) |
 | `skills/_shared/project-init.md` | shared doc | init subagent brief: Phase A crawl → Phase B bounded web → seed findings → structured result |
-| `skills/_shared/kg-schema-wizard.md` | shared doc | near-verbatim port of `divergence/skills/graph/schema.md` (5 stages), substrate-adapted to brain2 findings |
-| brain2 MCP server | code | surface 4 tools from the Divergence fork: `propose_kg_schema`, `set_kg_schema`, `get_kg_schema`, `build_graph` |
+| `skills/_shared/kg-schema-wizard.md` | shared doc | near-verbatim port of `delapan/skills/graph/schema.md` (5 stages), substrate-adapted to brain2 findings |
+| brain2 MCP server | code | surface 4 tools from the Delapan fork: `propose_kg_schema`, `set_kg_schema`, `get_kg_schema`, `build_graph` |
 | brain2 MCP server | code | cheap `kb_exists` check for the hook (or local cache the server writes) |
 | KB row | data | add `init_offered_at` stamp (offer-once); KB existence is the first-run lock |
 
@@ -167,7 +167,7 @@ SessionStart hook → repo identity → kb_exists?
 1. **MCP surface** — expose `propose_kg_schema` / `set_kg_schema` / `get_kg_schema`
    / `build_graph` + `kb_exists` in brain2's server. Verify via direct MCP calls.
    *(Unblocks everything; do first.)*
-2. **`kg-schema-wizard.md`** — port the Divergence wizard, swap substrate language.
+2. **`kg-schema-wizard.md`** — port the Delapan wizard, swap substrate language.
    Verify by running it by hand against an already-seeded brain2 KB.
 3. **`project-init.md`** — the init subagent brief. Verify by dispatching it
    manually on a fresh repo; inspect seeded findings (Phase A, then Phase B).
@@ -183,7 +183,7 @@ SessionStart hook → repo identity → kb_exists?
 The open dependency (KG backend port) was resolved: brain2's `knowledge_graph/`
 package now contains `schema.py` (models + proposer + validator), `extractor.py`
 (pure LLM extraction), and `builder.py` (store-routed orchestrator), ported from
-Divergence and adapted to brain2's `Store` abstraction. The MCP server exposes
+Delapan and adapted to brain2's `Store` abstraction. The MCP server exposes
 12 tools: the original 4 (`capture`, `resume`, `explore`, `activity`) plus 8 new
 ones (`kb_exists`, `mark_init_offered`, `propose_kg_schema`, `set_kg_schema`,
 `get_kg_schema`, `build_graph`, `graph`, `kg_stats`). The `hooks/hooks.json`

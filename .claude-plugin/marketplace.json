@@ -5,7 +5,7 @@
     "email": "anthonysuherli@gmail.com"
   },
   "metadata": {
-    "description": "Local dev marketplace for the brain2 plugin — context capture + 30-second resume card on a self-contained Divergence engine fork.",
+    "description": "Local dev marketplace for the brain2 plugin — context capture + 30-second resume card on a self-contained Delapan engine fork.",
     "version": "0.1.0"
   },
   "plugins": [

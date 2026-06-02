@@ -1,4 +1,4 @@
-"""Vercel AI Gateway client — Phase 3 exploration pipeline (adapted from Divergence)."""
+"""Vercel AI Gateway client — Phase 3 exploration pipeline (adapted from Delapan)."""
 
 from __future__ import annotations
 

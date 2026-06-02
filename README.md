@@ -82,7 +82,7 @@ Perfect for returning after a weekend or after your teammate merged a big change
 
 ---
 
-brain2 is a self-contained fork of [Divergence](../divergence), repurposing its 
+brain2 is a self-contained fork of [Delapan](../delapan), repurposing its 
 primitives (Findings, pgvector search, tap/preamble) from chat to automatic capture.
 
 ## Use it two ways

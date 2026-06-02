@@ -58,7 +58,7 @@ checkout:
 Where do you want to pick up?
   1. brain2 · dev          2h ago    12 snapshots   ← you are here
   2. brain2 · main         1d ago     4 snapshots
-  3. divergence · main     3d ago     9 snapshots
+  3. delapan · main     3d ago     9 snapshots
 ```
 
 The user picks a row (number or name) → resume it via **Step 1** with that

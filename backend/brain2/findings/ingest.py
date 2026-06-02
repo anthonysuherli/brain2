@@ -3,7 +3,7 @@
     text ──► chunk_text ──► embed_batch ──► findings rows (user client, RLS)
 
 Lifted out of `tools/ingest.py` so both the file-upload tool and the MCP
-`divergence_ingest_text` path share one chunk/embed/persist implementation.
+`delapan_ingest_text` path share one chunk/embed/persist implementation.
 Writes go through the **user-scoped** client so RLS stays authoritative
 (matches CLAUDE.md's ingest convention).
 """

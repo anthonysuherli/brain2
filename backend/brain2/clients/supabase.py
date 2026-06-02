@@ -1,4 +1,4 @@
-"""Supabase client factories (adapted from Divergence)."""
+"""Supabase client factories (adapted from Delapan)."""
 
 from __future__ import annotations
 

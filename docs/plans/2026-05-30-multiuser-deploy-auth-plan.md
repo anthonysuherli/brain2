@@ -610,5 +610,5 @@ Real device: Sign in with Apple → lands on Home (`/v1/projects`) → open a re
 ## Notes for the executor
 - DRY/YAGNI/TDD, frequent commits, one task at a time.
 - Phase A is the load-bearing, security-critical unit — do not merge it half-done (auth without KG org-scoping = open cross-org reads).
-- The live Supabase is the **shared Divergence instance** — never run destructive SQL; schema changes go through reviewed migration files, not ad-hoc MCP writes.
+- The live Supabase is the **shared Delapan instance** — never run destructive SQL; schema changes go through reviewed migration files, not ad-hoc MCP writes.
 - Local-tier behaviour must stay byte-for-byte unchanged (single user, no auth, loopback) — every `Principal`/`org_id` change forks on `active_backend()`.

@@ -27,7 +27,7 @@ isolated data, and reads it from anywhere. This pulls the iOS-companion design's
 
 ## What grounding the design changed
 
-Two findings (verified against the live shared Divergence Supabase schema and the
+Two findings (verified against the live shared Delapan Supabase schema and the
 backend source) reshaped the work:
 
 1. **Org provisioning already works.** A live, enabled trigger

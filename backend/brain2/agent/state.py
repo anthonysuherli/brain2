@@ -1,4 +1,4 @@
-"""Shared types for tool dispatch (adapted from Divergence; chat types removed)."""
+"""Shared types for tool dispatch (adapted from Delapan; chat types removed)."""
 
 from __future__ import annotations
 

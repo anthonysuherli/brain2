@@ -3,7 +3,7 @@
     findings ─► extract_graph ─► collapse nodes ─► upsert_kg_nodes ─► kg_nodes
                                                └─► resolve edges → ids ─► kg_edges
 
-Ported from divergence's ``knowledge_graph/builder.py`` with three key adaptations:
+Ported from delapan's ``knowledge_graph/builder.py`` with three key adaptations:
 
 1. **Store routing** — all persistence goes through ``get_store(ctx.access_token,
    org_id=ctx.org_id)`` instead of the service client directly. The entry paths

@@ -36,17 +36,17 @@ yes, that's the default shape.
 
 ## Architecture
 
-brain2 is a self-contained fork of the Divergence engine. The core engine files
+brain2 is a self-contained fork of the Delapan engine. The core engine files
 (config, clients, agent/preamble, agent/synopsis, findings, kbs, projects, monitoring)
-are copied from `../divergence/backend/divergence/` with all imports renamed from
-`divergence.*` to `brain2.*`. Do NOT add a cross-repo import dependency — keep
+are copied from `../delapan/backend/delapan/` with all imports renamed from
+`delapan.*` to `brain2.*`. Do NOT add a cross-repo import dependency — keep
 brain2 fully standalone.
 
 ### What's new (brain2-specific)
 
 - `brain2/capture/` — WorkspaceSnapshot model, snapshot→Finding adapter, persist service
 - `brain2/knowledge_graph/` — the **activity KG**: per-user, cross-repo work graph
-  (`models.py` = node/edge carriers ported from divergence; `activity.py` = seeded
+  (`models.py` = node/edge carriers ported from delapan; `activity.py` = seeded
   ontology + deterministic-plus-gated-LLM extraction, fire-and-forget population on
   capture, and the query/rollup/stats read surfaces)
 - `brain2/api/` — FastAPI: `/v1/capture`, `/v1/resume/{project}/{kb}`, `/v1/explore/...`,
@@ -73,7 +73,7 @@ brain2 fully standalone.
 - `agent/graph.py` — LangGraph chat agent
 - `api/agent.py`, `api/public.py`, `api/internal.py` — chat + deploy surfaces
 - `research/` — HTML report generation
-- `knowledge_graph/` (generic KG) — the divergence build_graph/propose_schema/extractor
+- `knowledge_graph/` (generic KG) — the delapan build_graph/propose_schema/extractor
   machinery (user-curated ontology over all findings) stays excluded. brain2's
   `knowledge_graph/` ports only `models.py` and adds its own **activity** graph; the
   generic finding→graph builder is not needed by the capture/resume loop.
@@ -96,7 +96,7 @@ never touches a storage client directly — it calls `store = get_store()`.
   - The protocol also carries the **activity-graph** surface (`upsert_kg_nodes`,
     `upsert_kg_edges`, `match_kg_nodes`, `get_kg_subgraph`, `list_kg_nodes`,
     `kg_stats`). SQLite adds `kg_nodes`/`vec_kg_nodes`/`kg_edges` tables; Supabase
-    reuses divergence's existing `kg_nodes`/`kg_edges` + `match_kg_nodes` RPC. Node
+    reuses delapan's existing `kg_nodes`/`kg_edges` + `match_kg_nodes` RPC. Node
     dedupe is exact `(kb_id, type, label)`; stored label embeddings power only
     semantic subgraph seeding, never dedupe.
 - **Selection** — `active_backend()` / `get_store()` read `BRAIN2_BACKEND`
@@ -157,12 +157,12 @@ python -m brain2.interfaces.mcp.server          # add to .claude/settings.json
 
 ## Conventions
 
-- Imports: always `from brain2.*` — never `from divergence.*`
-- Engine updates: when syncing engine improvements from divergence, apply them manually
+- Imports: always `from brain2.*` — never `from delapan.*`
+- Engine updates: when syncing engine improvements from delapan, apply them manually
   (copy file, rename imports). Do NOT re-introduce a cross-repo dep.
 - Auth: cloud tier uses a pre-shared API key (`BRAIN2_API_KEY` in .env, passed as a
   Bearer token by clients); local tier requires no key (loopback-only, see Storage tiers)
-- Supabase (cloud tier): same instance and schema as divergence (no migration divergence)
+- Supabase (cloud tier): same instance and schema as delapan (no migration divergence)
 - KB naming: project = workspace folder name, kb = git branch name
 
 ## Phase status
@@ -221,7 +221,7 @@ python -m brain2.interfaces.mcp.server          # add to .claude/settings.json
 ## Plugin (Claude Code skills)
 
 brain2 ships as a Claude Code plugin (the primary developer surface). Skills live
-in `skills/` and follow the Divergence pattern — Markdown files that direct how
+in `skills/` and follow the Delapan pattern — Markdown files that direct how
 Claude Code behaves for each slash command, calling the `brain2_*` MCP tools.
 
 ```
@@ -234,7 +234,7 @@ skills/
   activity/SKILL.md           /brain2:activity <q> — query the cross-repo activity graph
 ```
 
-**Target resolution** (simpler than Divergence — no active-KB state):
+**Target resolution** (simpler than Delapan — no active-KB state):
 - `project` = current git repo name (`git rev-parse --show-toplevel` basename)
 - `kb` = current git branch
 

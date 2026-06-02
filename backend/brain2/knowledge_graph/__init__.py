@@ -1,7 +1,7 @@
 """brain2 knowledge-graph layer.
 
 Scope is narrow on purpose: brain2 ships a single, automatic **activity** graph
-(per user, cross-repo, populated on every capture), not divergence's generic
+(per user, cross-repo, populated on every capture), not delapan's generic
 user-curated KG. This package carries:
 
 - ``models`` — node/edge data models shared across the layer

@@ -12,7 +12,7 @@ captures. It tracks what the user is working on — repos touched, branches, fil
 edited, and the intent (Task) behind each work session — and is queryable via an MCP
 tool, surfaced in the resume card, and exposed over a small REST API.
 
-Unlike the divergence KG (where users co-design an ontology and run an explicit
+Unlike the delapan KG (where users co-design an ontology and run an explicit
 extraction over a KB's findings), the activity KG has a **known, seeded ontology** and
 **populates incrementally on every capture** with zero extra user action.
 
@@ -81,7 +81,7 @@ Node dedupe reuses the proven `vec0` cosine search: embed the node label, search
 `vec_kg_nodes` within `kb_id`, reuse the existing node id above threshold (merge
 `properties` + `grounded_in`), else insert.
 
-**SupabaseStore** — reuses divergence's **existing** `kg_nodes`/`kg_edges` tables and the
+**SupabaseStore** — reuses delapan's **existing** `kg_nodes`/`kg_edges` tables and the
 `match_kg_nodes` RPC (same instance, same schema — zero migration divergence). Methods
 are thin wrappers.
 
@@ -117,7 +117,7 @@ Relations (validity-constrained):
    Session nodes + all structural edges. No LLM, no failure modes. Repo/Branch/File are
    **stable dedupe targets** — every capture in `brain2/dev` resolves to the *same* Repo
    and Branch nodes, so the graph compounds instead of fragmenting.
-2. **LLM pass (gated)** — the ported divergence `extractor` over just the `hypothesis`
+2. **LLM pass (gated)** — the ported delapan `extractor` over just the `hypothesis`
    → **Task** nodes + `pursued`/`in_repo` edges. Soft-regime extractor never raises
    (empty on failure). Gated by `BRAIN2_ACTIVITY_LLM` (default on).
 
@@ -151,11 +151,11 @@ fail a capture.**
 
 **`brain2_activity` MCP tool** (`server.py`) — params `query`, optional `repo`/`since`.
 Embeds the query, `get_kg_subgraph(activity_kb_id, seed_embedding=…)`, returns
-`{nodes, edges, summary}` (short NL rollup). Mirrors `divergence_graph`.
+`{nodes, edges, summary}` (short NL rollup). Mirrors `delapan_graph`.
 
 **Cross-repo resume card** (`api/resume.py`) — resume additionally resolves
 `activity_kb_id`, pulls recent `Session` nodes grouped by Repo/Branch, and the card
-renderer gains an **"Activity"** section (`brain2/dev · 2h ago`, `divergence/main ·
+renderer gains an **"Activity"** section (`brain2/dev · 2h ago`, `delapan/main ·
 yesterday`). Purely additive to the existing card HTML.
 
 **REST API** (`api/activity.py`, new router):
@@ -169,7 +169,7 @@ Both use `require_api_key` (no-op on local) and resolve the activity KB for the 
 **Error handling (cardinal rule: never break capture).**
 - `schedule_activity_update` fully wrapped — any exception caught, logged WARNING,
   swallowed. Capture latency/success unaffected.
-- LLM pass: divergence extractor guarantee — failure → empty extraction, never raises.
+- LLM pass: delapan extractor guarantee — failure → empty extraction, never raises.
   Structural nodes still land.
 - Embedding failure during dedupe → skip the vec probe, insert fresh (degrades to
   no-dedupe, not data loss).
@@ -192,13 +192,13 @@ Both use `require_api_key` (no-op on local) and resolve the activity KB for the 
 - *Flow:* `schedule_activity_update` with a throwing stubbed store/LLM → never raises.
 - *Surfaces:* `brain2_activity` returns a subgraph; resume card includes Activity
   section; API endpoints return expected JSON shapes.
-- *Supabase:* thin wrappers over divergence's proven tables/RPC — shared Store contract
+- *Supabase:* thin wrappers over delapan's proven tables/RPC — shared Store contract
   test (SQLite in CI; Supabase behind an integration marker).
 
 ## 7. Porting summary
 
-Copy `divergence/knowledge_graph/{models,schema,extractor}.py` → `brain2/knowledge_graph/`
-(rename `divergence.*` → `brain2.*`). Adapt `builder.py` persistence to call **Store
+Copy `delapan/knowledge_graph/{models,schema,extractor}.py` → `brain2/knowledge_graph/`
+(rename `delapan.*` → `brain2.*`). Adapt `builder.py` persistence to call **Store
 protocol** methods instead of direct Supabase RPC (tier-agnostic).
 
 New brain2 code:

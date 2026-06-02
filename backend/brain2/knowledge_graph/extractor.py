@@ -2,7 +2,7 @@
 
     findings (title + category + content) ──► AI Gateway ──► KGExtraction
 
-Mirrors divergence's ``knowledge_graph/extractor.py``: routes through the
+Mirrors delapan's ``knowledge_graph/extractor.py``: routes through the
 AI Gateway (dotted slugs), instructs the schema in the prompt
 (``use_json_schema=False``, for the free-form ``properties`` dicts), and never
 raises — a failed pass yields an empty graph rather than poisoning the build.
@@ -58,7 +58,7 @@ def _schema_block(schema: KGSchema) -> str:
     Soft mode: out-of-schema signal is KEPT (typed 'other'), never dropped — a
     too-narrow schema degrades gracefully instead of losing findings.
 
-    Adapts from divergence: brain2's ``KGSchema.relation_validity`` is a flat
+    Adapts from delapan: brain2's ``KGSchema.relation_validity`` is a flat
     ``list[RelationValidity]`` (typed objects) rather than a
     ``dict[str, list[str]]``, so validity is rendered as ``source → target`` pairs.
     """
@@ -126,7 +126,7 @@ def _catalogue(findings: list[dict], max_finding_chars: int) -> str:
 
 
 # Entity names too generic to safely text-match against finding bodies.
-# Mirrors divergence's guard.
+# Mirrors delapan's guard.
 _GENERIC_NAMES = frozenset(
     {
         "entity",
@@ -198,7 +198,7 @@ def backfill_grounding(extraction: _LLMExtraction, findings: list[dict]) -> int:
     """Deterministic repair: fill empty ``grounded_in`` by case-insensitive
     substring match of an entity's label against finding text.
 
-    Ported from divergence. The generic-name guard prevents a vague label
+    Ported from delapan. The generic-name guard prevents a vague label
     from matching everything. Returns the count of nodes+edges still ungrounded
     after the pass."""
     texts = [

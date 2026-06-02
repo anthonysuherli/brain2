@@ -1,7 +1,7 @@
 """Pydantic models for the exploration pipeline.
 
 Ported from delapan's `features/exploration/models.py`, trimmed to what
-divergence uses: no `TolerantModel`, no `Exploration` row (divergence owns that
+delapan uses: no `TolerantModel`, no `Exploration` row (delapan owns that
 row in Supabase), no ontology. `RawFinding`/`FindingBatch` are the LLM
 structured-output schemas; `Finding` is the in-memory result the engine returns.
 """

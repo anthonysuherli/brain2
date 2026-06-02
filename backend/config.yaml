@@ -1,4 +1,4 @@
-# brain2 engine config — layered on top of Divergence defaults.
+# brain2 engine config — layered on top of Delapan defaults.
 # Override any section/field with env var B2_<SECTION>__<FIELD> (highest
 # precedence), e.g. B2_SEARCH__DEFAULT_LIMIT=20.
 #
