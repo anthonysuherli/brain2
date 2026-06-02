@@ -3,6 +3,37 @@
 Context-capture and resume engine — eliminates the 9.5-minute context-rebuild tax by
 capturing developer intent on interruption and replaying it as a 30-second resume card.
 
+## Design philosophy
+
+**Non-blocking by default.** brain2 must never hijack the user's turn to do its own
+work. The user's flow is sacred; brain2's work happens *around* it. Every feature that
+isn't a direct response to a user command should be built to this principle:
+
+- **Work in the background.** Context collection (seeding, enrichment, distillation,
+  graph population) runs as background agents — `Agent(run_in_background)` for
+  orchestrated multi-step work, fire-and-forget hooks for cheap structural passes.
+  Prefer **agent teams** (parallel subagents, each owning one slice — repo crawl, git
+  history, web enrichment, schema drafting) over one long serial pass, so the wall-clock
+  cost is the slowest slice, not the sum. Precedents: the activity-KG fire-and-forget
+  population on capture (`api/capture.py`), the first-run-init background subagent
+  (`docs/plans/2026-06-01-brain2-first-run-init-design.md`).
+- **Gate decisions at turn boundaries, never mid-flow.** Anything that genuinely needs
+  the user — schema creation / KG ontology co-design, creating a new KB, a destructive
+  or expensive choice — waits until the background work is *ready*, then surfaces a
+  single one-line offer at the next turn boundary ("Schema draft is ready — set it up?").
+  Never a modal mid-edit, never a blocking prompt the user didn't ask for. The user opts
+  *in* to the interactive step; until they do, brain2 stays quiet and keeps working.
+- **Best-effort, fails silent.** Background work never breaks the user's session. A
+  failed seed, an unreachable backend, a graph error — all degrade to "do nothing
+  visible" and fall through to an on-demand recovery path. Fail closed, stay invisible.
+- **Offer once, then go quiet.** A gated offer that's declined or ignored is not
+  re-raised every launch; stamp it and move on (the capability stays available on
+  demand). Don't nag.
+
+When designing or implementing any context-gathering feature, ask: *can this run in the
+background as an agent team, and defer the human decision to a turn-boundary offer?* If
+yes, that's the default shape.
+
 ## Architecture
 
 brain2 is a self-contained fork of the Divergence engine. The core engine files
