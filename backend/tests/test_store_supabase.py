@@ -442,3 +442,65 @@ async def test_record_access_swallows_exceptions(patch_clients):
         surface="mcp",
         targets=[_Target("finding", "f1")],
     )
+
+
+# --- activity knowledge graph -----------------------------------------------
+
+
+async def test_update_kg_node_properties_only(patch_clients):
+    fake = patch_clients(FakeClient(tables={"kg_nodes": _Result(data=[])}))
+    await SupabaseStore().update_kg_node(
+        "kb1", "n1", properties={"body": "new", "confidence": 0.9}
+    )
+    q = fake.queries[-1]
+    assert q.table == "kg_nodes" and q.op == "update"
+    assert q.payload == {"properties": {"body": "new", "confidence": 0.9}}
+    # filtered by both id and kb_id
+    assert q.filters.get("id") == "n1"
+    assert q.filters.get("kb_id") == "kb1"
+    # not provided → not written
+    assert "grounded_in" not in q.payload
+    assert "embedding" not in q.payload
+
+
+async def test_update_kg_node_with_grounded_and_embedding(patch_clients):
+    fake = patch_clients(FakeClient(tables={"kg_nodes": _Result(data=[])}))
+    await SupabaseStore().update_kg_node(
+        "kb1",
+        "n1",
+        properties={"body": "x"},
+        grounded_in=["f1", "f2"],
+        embedding=[0.1, 0.2, 0.3],
+    )
+    q = fake.queries[-1]
+    assert q.table == "kg_nodes" and q.op == "update"
+    assert q.payload["properties"] == {"body": "x"}
+    assert q.payload["grounded_in"] == ["f1", "f2"]
+    assert q.payload["embedding"] == [0.1, 0.2, 0.3]
+    assert q.filters.get("id") == "n1"
+    assert q.filters.get("kb_id") == "kb1"
+
+
+def test_list_kg_nodes_selects_and_returns_grounded_in(patch_clients):
+    fake = patch_clients(
+        FakeClient(
+            tables={
+                "kg_nodes": _Result(
+                    data=[
+                        {
+                            "id": "n1",
+                            "type": "concept",
+                            "label": "Auth",
+                            "properties": {"body": "x"},
+                            "grounded_in": ["f1"],
+                            "created_at": "2026-06-01",
+                        }
+                    ]
+                )
+            }
+        )
+    )
+    rows = SupabaseStore().list_kg_nodes("kb1", type="concept")
+    q = fake.queries[-1]
+    assert "grounded_in" in q.select_cols
+    assert rows[0]["grounded_in"] == ["f1"]

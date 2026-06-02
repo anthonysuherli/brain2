@@ -836,3 +836,23 @@ git commit -m "feat(distill): bind concepts to activity via about edges"
 - **Phase C** — `band_concepts` + `<concepts>` in `render_preamble`; `/v1/context`
   + `brain2_context`; re-point resume/search; `refines`/`contradicts` reconciliation.
 - **Phase D** — `/brain2:distill` skill + `brain2_distill` MCP tool.
+
+### Carry-over from the Phase A final review (MUST revisit before the Phase B trigger)
+
+Two items the final code review surfaced. Neither blocks Phase A's manual driver,
+but both must be handled when `distill_kb` is wired into a fire-and-forget
+post-capture/explore trigger:
+
+1. **Fire-and-forget error swallow.** `distill_kb` currently lets exceptions
+   propagate (correct for the manual/test driver). Before dropping it into
+   `asyncio.create_task`, wrap the call the way `activity.py::_run_activity_update`
+   does (`except Exception: logger.exception(...)`) so a distillation failure can
+   never break a capture/explore. The module's `logger` is already in place for this.
+2. **Confidence saturates to ~1.0.** `blended_confidence(len(merged_ev), 1.0)` uses
+   the *whole selected cluster* (up to `neighborhood_cap=30` findings) as the source
+   count, so `1 − 0.6^30 ≈ 1.0` for essentially every concept, and the `quality`
+   multiplier is hardcoded `1.0` (`enable_evaluation`/`min_confidence` in
+   `ConceptConfig` are defined but unused). Fix when the Phase-C critic lands: feed
+   the critic's per-concept `quality` into `blended_confidence`, and base the source
+   count on the concept's *actual* corroborating evidence (e.g. the LLM's per-concept
+   `cand.evidence` validated against real ids) rather than the full cluster.

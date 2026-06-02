@@ -123,6 +123,21 @@ class Store(Protocol):
         ``(source, target, relation)`` is skipped (idempotent re-capture)."""
         ...
 
+    async def update_kg_node(
+        self,
+        kb_id: str,
+        node_id: str,
+        *,
+        properties: dict,
+        grounded_in: list[str] | None = None,
+        embedding: list[float] | None = None,
+    ) -> None:
+        """Overwrite a node's payload (unlike upsert_kg_nodes, which merges with
+        existing-wins). `properties` replaces wholesale; `grounded_in` replaces when
+        given; `embedding` re-indexes the vector when given. Used to re-distill a
+        concept's body/confidence/version in place."""
+        ...
+
     async def match_kg_nodes(
         self,
         kb_id: str,
@@ -152,6 +167,12 @@ class Store(Protocol):
     ) -> list[dict]:
         """Most-recent nodes in `kb_id` (optionally one type). Rows carry
         ``id, type, label, properties, created_at``."""
+        ...
+
+    def get_kg_node(self, kb_id: str, node_id: str) -> dict | None:
+        """One node by id within `kb_id`, or None. Row carries the full decoded
+        ``id, type, label, properties, grounded_in`` — the authoritative read for
+        re-distilling a concept in place (versus a capped, recency-windowed list)."""
         ...
 
     def kg_stats(self, kb_id: str) -> dict:

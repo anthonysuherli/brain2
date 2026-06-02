@@ -546,6 +546,35 @@ class SQLiteStore:
             (json.dumps(merged_props), json.dumps(merged_grounded), node_id),
         )
 
+    async def update_kg_node(
+        self,
+        kb_id: str,
+        node_id: str,
+        *,
+        properties: dict,
+        grounded_in: list[str] | None = None,
+        embedding: list[float] | None = None,
+    ) -> None:
+        """Overwrite payload in place (no merge). Re-indexes the vector if given."""
+        if grounded_in is not None:
+            self._conn.execute(
+                "UPDATE kg_nodes SET properties = ?, grounded_in = ? WHERE id = ? AND kb_id = ?;",
+                (json.dumps(properties), json.dumps(list(grounded_in)[-_MAX_GROUNDED:]),
+                 node_id, kb_id),
+            )
+        else:
+            self._conn.execute(
+                "UPDATE kg_nodes SET properties = ? WHERE id = ? AND kb_id = ?;",
+                (json.dumps(properties), node_id, kb_id),
+            )
+        if embedding is not None:
+            self._conn.execute("DELETE FROM vec_kg_nodes WHERE node_id = ?;", (node_id,))
+            self._conn.execute(
+                "INSERT INTO vec_kg_nodes (node_id, embedding) VALUES (?, ?);",
+                (node_id, serialize_float32(list(embedding))),
+            )
+        self._conn.commit()
+
     async def upsert_kg_edges(self, kb_id: str, edges: list[dict]) -> int:
         """Insert edges, skipping self-loops, dangling ids, and existing
         ``(source, target, relation)`` triples. Returns the count inserted."""
@@ -674,7 +703,7 @@ class SQLiteStore:
     ) -> list[dict]:
         """Most-recent nodes in `kb_id` (optionally one type), newest first."""
         n = min(limit or 50, 500)
-        sql = "SELECT id, type, label, properties, created_at FROM kg_nodes WHERE kb_id = ?"
+        sql = "SELECT id, type, label, properties, grounded_in, created_at FROM kg_nodes WHERE kb_id = ?"
         params: list[object] = [kb_id]
         if type:
             sql += " AND type = ?"
@@ -684,9 +713,28 @@ class SQLiteStore:
         rows = self._conn.execute(sql, params).fetchall()
         return [
             {"id": r["id"], "type": r["type"], "label": r["label"],
-             "properties": _json_load(r["properties"], {}), "created_at": r["created_at"]}
+             "properties": _json_load(r["properties"], {}),
+             "grounded_in": _json_load(r["grounded_in"], []),
+             "created_at": r["created_at"]}
             for r in rows
         ]
+
+    def get_kg_node(self, kb_id: str, node_id: str) -> dict | None:
+        """One node by id within `kb_id`, or None. Full decoded row — the
+        authoritative read for re-distilling a concept (unlike list_kg_nodes,
+        which is capped + recency-windowed and can miss an older target)."""
+        r = self._conn.execute(
+            "SELECT id, type, label, properties, grounded_in "
+            "FROM kg_nodes WHERE id = ? AND kb_id = ? LIMIT 1;",
+            (node_id, kb_id),
+        ).fetchone()
+        if r is None:
+            return None
+        return {
+            "id": r["id"], "type": r["type"], "label": r["label"],
+            "properties": _json_load(r["properties"], {}),
+            "grounded_in": _json_load(r["grounded_in"], []),
+        }
 
     def kg_stats(self, kb_id: str) -> dict:
         """Node/edge totals + counts by node type and by relation."""
