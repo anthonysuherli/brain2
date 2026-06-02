@@ -155,11 +155,13 @@ class Store(Protocol):
         seed_node_ids: list[str] | None = None,
         node_cap: int = 200,
         edge_cap: int = 600,
+        depth: int = 1,
     ) -> dict:
         """Return ``{"nodes", "edges"}`` for `kb_id`.
 
-        With ``seed_node_ids`` → those nodes, their incident edges, and the
-        immediate neighbours (one hop). Without → the whole graph, capped."""
+        With ``seed_node_ids`` → BFS from those nodes up to ``depth`` hops,
+        capped by ``node_cap``/``edge_cap``. Without → the whole graph, capped.
+        ``depth=1`` is the original one-hop behaviour."""
         ...
 
     def list_kg_nodes(
@@ -178,6 +180,48 @@ class Store(Protocol):
     def kg_stats(self, kb_id: str) -> dict:
         """Graph totals + breakdowns: ``node_count, edge_count, by_type,
         by_relation``."""
+        ...
+
+    def clear_kg(self, kb_id: str) -> None:
+        """Delete all nodes and edges for `kb_id` (edges first — FK constraint).
+
+        Used by ``build_graph(rebuild=True)`` before a full rebuild. Scoped
+        strictly to ``kb_id`` so other KBs in the same org are never touched."""
+        ...
+
+    # --- KG intent schema (versioned, approved target ontology) ---------------
+    # Stored in `kg_schemas` (one row per version, newest = active). `set`
+    # inserts the next version; `get` reads the highest. The KG builder reads
+    # `get` to steer extraction; a view pairs INTENT with EMERGENT ontology.
+
+    def get_kg_intent(self, kb_id: str) -> dict | None:
+        """The KB's highest-version approved KG intent schema, or None if never set.
+
+        Returns a dict with at least ``{version, schema}``."""
+        ...
+
+    def set_kg_intent(self, org_id: str, kb_id: str, schema: dict) -> dict:
+        """Persist an approved schema as the next version (never overwrites history).
+
+        Version is ``max(existing version for kb_id) + 1`` (first set = 1).
+        Returns a dict with at least ``{version, schema}``."""
+        ...
+
+    # --- first-run offer-once stamp ------------------------------------------
+
+    def get_init_offered(self, kb_id: str) -> bool:
+        """Return True iff the KG schema wizard has already been offered for `kb_id`.
+
+        Reads ``init_offered_at``; returns False when the column is absent or
+        null (pre-migration, or wizard not yet offered)."""
+        ...
+
+    def mark_init_offered(self, kb_id: str) -> None:
+        """Stamp `kb_id` with the time the KG schema wizard was offered.
+
+        Called once — by ``brain2_mark_init_offered`` — after the first-run
+        schema offer is surfaced.  Prevents re-offering on subsequent sessions.
+        No-op if the column is absent (local tier before migration 0007)."""
         ...
 
     # --- monitoring — best-effort --------------------------------------------

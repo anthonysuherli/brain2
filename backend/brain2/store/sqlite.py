@@ -54,7 +54,8 @@ _SCHEMA = """
 CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY, org_id TEXT NOT NULL, name TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS kbs (
-  id TEXT PRIMARY KEY, org_id TEXT NOT NULL, project_id TEXT NOT NULL, name TEXT NOT NULL, created_at TEXT NOT NULL);
+  id TEXT PRIMARY KEY, org_id TEXT NOT NULL, project_id TEXT NOT NULL, name TEXT NOT NULL,
+  created_at TEXT NOT NULL, init_offered_at TEXT);
 CREATE TABLE IF NOT EXISTS findings (
   id TEXT PRIMARY KEY, org_id TEXT NOT NULL, kb_id TEXT NOT NULL,
   title TEXT, content TEXT, category TEXT, confidence REAL,
@@ -78,7 +79,19 @@ CREATE INDEX IF NOT EXISTS idx_findings_kb ON findings(kb_id);
 CREATE INDEX IF NOT EXISTS idx_kg_nodes_kb ON kg_nodes(kb_id);
 CREATE INDEX IF NOT EXISTS idx_kg_nodes_dedupe ON kg_nodes(kb_id, type, label);
 CREATE INDEX IF NOT EXISTS idx_kg_edges_kb ON kg_edges(kb_id);
+CREATE TABLE IF NOT EXISTS kg_schemas (
+  id TEXT PRIMARY KEY, org_id TEXT NOT NULL, kb_id TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1, schema TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_kg_schemas_kb_version ON kg_schemas(kb_id, version);
 """
+
+# Post-schema migrations: ADD COLUMN statements for older DBs.
+# SQLite does not support ``IF NOT EXISTS`` on ALTER TABLE so we run each in its
+# own try/except inside ``_ensure_schema``.  The list grows with each migration.
+_ADD_COLUMN_MIGRATIONS: list[str] = [
+    # 0007: offer-once stamp (added when kbs table already exists in older DBs)
+    "ALTER TABLE kbs ADD COLUMN init_offered_at TEXT;",
+]
 
 # Cap on how many grounding finding ids a long-lived node (a repo touched for
 # months) accumulates — keep the most recent, so the column can't grow unbounded.
@@ -139,6 +152,16 @@ class SQLiteStore:
     def _ensure_schema(self) -> None:
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
+        # Run post-schema ADD COLUMN migrations idempotently.  SQLite raises
+        # ``OperationalError: duplicate column name`` when a column already exists
+        # (no ``IF NOT EXISTS`` support for ALTER TABLE).  We swallow those
+        # errors so re-opening an existing DB is always safe.
+        for stmt in _ADD_COLUMN_MIGRATIONS:
+            try:
+                self._conn.execute(stmt)
+                self._conn.commit()
+            except Exception:  # noqa: BLE001 — column already present
+                pass
 
     # --- findings — hot path -------------------------------------------------
 
@@ -649,22 +672,42 @@ class SQLiteStore:
         seed_node_ids: list[str] | None = None,
         node_cap: int = 200,
         edge_cap: int = 600,
+        depth: int = 1,
     ) -> dict:
-        """Seeded → seeds + incident edges + one-hop neighbours; else whole graph."""
+        """BFS from ``seed_node_ids`` up to ``depth`` hops; else whole graph, capped."""
         if seed_node_ids:
-            ids = list(dict.fromkeys(seed_node_ids))
-            ph = ",".join("?" for _ in ids)
-            edge_rows = self._conn.execute(
-                f"SELECT id, source_node_id, target_node_id, relation, properties, grounded_in "
-                f"FROM kg_edges WHERE kb_id = ? "
-                f"AND (source_node_id IN ({ph}) OR target_node_id IN ({ph})) LIMIT ?;",
-                (kb_id, *ids, *ids, edge_cap),
-            ).fetchall()
-            node_id_set = set(ids)
-            for er in edge_rows:
-                node_id_set.add(er["source_node_id"])
-                node_id_set.add(er["target_node_id"])
-            wanted = list(node_id_set)[:node_cap]
+            frontier = list(dict.fromkeys(seed_node_ids))
+            all_node_ids: set[str] = set(frontier)
+            all_edge_rows: list = []
+            seen_edge_ids: set[str] = set()
+            visited_frontiers: set[str] = set()
+            for _ in range(max(depth, 1)):
+                to_expand = [n for n in frontier if n not in visited_frontiers]
+                if not to_expand:
+                    break
+                visited_frontiers.update(to_expand)
+                ph = ",".join("?" for _ in to_expand)
+                hop_rows = self._conn.execute(
+                    f"SELECT id, source_node_id, target_node_id, relation, properties, grounded_in "
+                    f"FROM kg_edges WHERE kb_id = ? "
+                    f"AND (source_node_id IN ({ph}) OR target_node_id IN ({ph})) LIMIT ?;",
+                    (kb_id, *to_expand, *to_expand, edge_cap),
+                ).fetchall()
+                new_nodes: set[str] = set()
+                for er in hop_rows:
+                    eid = er["id"]
+                    if eid not in seen_edge_ids:
+                        seen_edge_ids.add(eid)
+                        all_edge_rows.append(er)
+                    new_nodes.add(er["source_node_id"])
+                    new_nodes.add(er["target_node_id"])
+                all_node_ids.update(new_nodes)
+                if len(all_node_ids) >= node_cap:
+                    break
+                frontier = [n for n in new_nodes if n not in visited_frontiers]
+                if not frontier:
+                    break
+            wanted = list(all_node_ids)[:node_cap]
             nph = ",".join("?" for _ in wanted)
             node_rows = (
                 self._conn.execute(
@@ -675,6 +718,7 @@ class SQLiteStore:
                 if wanted
                 else []
             )
+            edge_rows = all_edge_rows[:edge_cap]
         else:
             node_rows = self._conn.execute(
                 "SELECT id, type, label, properties FROM kg_nodes WHERE kb_id = ? LIMIT ?;",
@@ -736,6 +780,17 @@ class SQLiteStore:
             "grounded_in": _json_load(r["grounded_in"], []),
         }
 
+    def clear_kg(self, kb_id: str) -> None:
+        """Delete all nodes and edges for `kb_id` (edges first — FK / vec_kg_nodes)."""
+        self._conn.execute("DELETE FROM kg_edges WHERE kb_id = ?;", (kb_id,))
+        # Delete vec_kg_nodes for all nodes in this KB before deleting the nodes.
+        for row in self._conn.execute(
+            "SELECT id FROM kg_nodes WHERE kb_id = ?;", (kb_id,)
+        ).fetchall():
+            self._conn.execute("DELETE FROM vec_kg_nodes WHERE node_id = ?;", (row["id"],))
+        self._conn.execute("DELETE FROM kg_nodes WHERE kb_id = ?;", (kb_id,))
+        self._conn.commit()
+
     def kg_stats(self, kb_id: str) -> dict:
         """Node/edge totals + counts by node type and by relation."""
         node_count = self._conn.execute(
@@ -761,6 +816,65 @@ class SQLiteStore:
             "by_type": by_type,
             "by_relation": by_relation,
         }
+
+    # --- KG intent schema (versioned) ----------------------------------------
+
+    def get_kg_intent(self, kb_id: str) -> dict | None:
+        """The KB's highest-version approved KG intent schema, or None if never set."""
+        r = self._conn.execute(
+            "SELECT version, schema FROM kg_schemas WHERE kb_id = ? ORDER BY version DESC LIMIT 1;",
+            (kb_id,),
+        ).fetchone()
+        if r is None:
+            return None
+        return {"version": r["version"], "schema": _json_load(r["schema"], {})}
+
+    def set_kg_intent(self, org_id: str, kb_id: str, schema: dict) -> dict:
+        """Persist an approved schema as the next version (never overwrites history).
+
+        Atomically reads the current max version for `kb_id` and inserts the next.
+        Returns ``{"version": <new>, "schema": <schema>}``."""
+        # Single shared connection serializes the read-then-write; unique index is the backstop.
+        cur = self._conn.execute(
+            "SELECT version FROM kg_schemas WHERE kb_id = ? ORDER BY version DESC LIMIT 1;",
+            (kb_id,),
+        ).fetchone()
+        next_version = (cur["version"] if cur is not None else 0) + 1
+        self._conn.execute(
+            "INSERT INTO kg_schemas (id, org_id, kb_id, version, schema, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?);",
+            (uuid.uuid4().hex, org_id, kb_id, next_version, json.dumps(schema), _now_iso()),
+        )
+        self._conn.commit()
+        return {"version": next_version, "schema": schema}
+
+    # --- first-run offer-once stamp ------------------------------------------
+
+    def get_init_offered(self, kb_id: str) -> bool:
+        """Return True iff the wizard has already been offered for `kb_id`."""
+        try:
+            r = self._conn.execute(
+                "SELECT init_offered_at FROM kbs WHERE id = ? LIMIT 1;", (kb_id,)
+            ).fetchone()
+            return bool(r and r["init_offered_at"])
+        except Exception:  # noqa: BLE001 — column absent on old DB
+            return False
+
+    def mark_init_offered(self, kb_id: str) -> None:
+        """Stamp `kb_id` with the init-offered timestamp.
+
+        The column ``init_offered_at`` is added by migration 0007; on an
+        older DB that hasn't been migrated the UPDATE silently no-ops (the
+        column is absent and SQLite raises ``OperationalError`` — swallowed
+        here so the local tier is always safe)."""
+        try:
+            self._conn.execute(
+                "UPDATE kbs SET init_offered_at = ? WHERE id = ?;",
+                (_now_iso(), kb_id),
+            )
+            self._conn.commit()
+        except Exception:  # noqa: BLE001 — column may not exist yet
+            pass
 
     # --- monitoring — best-effort --------------------------------------------
 

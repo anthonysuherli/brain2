@@ -439,28 +439,56 @@ class SupabaseStore:
         seed_node_ids: list[str] | None = None,
         node_cap: int = 200,
         edge_cap: int = 600,
+        depth: int = 1,
     ) -> dict:
-        """Seeded → seeds + incident edges + one-hop neighbours; else whole graph."""
+        """BFS from ``seed_node_ids`` up to ``depth`` hops; else whole graph, capped."""
         sb = service_client()
         edge_cols = "id, source_node_id, target_node_id, relation, properties"
         node_cols = "id, type, label, properties"
         if seed_node_ids:
-            ids = list(dict.fromkeys(seed_node_ids))
-            eq = (
-                sb.table("kg_edges").select(edge_cols).eq("kb_id", kb_id)
-                .or_(
-                    f"source_node_id.in.({','.join(ids)}),"
-                    f"target_node_id.in.({','.join(ids)})"
+            frontier = list(dict.fromkeys(seed_node_ids))
+            all_node_ids: set[str] = set(frontier)
+            all_edges: list[dict] = []
+            visited_frontiers: set[str] = set()
+            for _ in range(max(depth, 1)):
+                # Only expand nodes not already used as a frontier.
+                to_expand = [n for n in frontier if n not in visited_frontiers]
+                if not to_expand:
+                    break
+                visited_frontiers.update(to_expand)
+                ids_str = ",".join(to_expand)
+                eq = (
+                    sb.table("kg_edges").select(edge_cols).eq("kb_id", kb_id)
+                    .or_(
+                        f"source_node_id.in.({ids_str}),"
+                        f"target_node_id.in.({ids_str})"
+                    )
                 )
-            )
-            if self.org_id is not None:
-                eq = eq.eq("org_id", self.org_id)
-            edges = eq.limit(edge_cap).execute().data or []
-            node_id_set = set(ids)
-            for e in edges:
-                node_id_set.add(e["source_node_id"])
-                node_id_set.add(e["target_node_id"])
-            wanted = list(node_id_set)[:node_cap]
+                if self.org_id is not None:
+                    eq = eq.eq("org_id", self.org_id)
+                hop_edges = eq.limit(edge_cap).execute().data or []
+                all_edges.extend(hop_edges)
+                # Collect newly discovered neighbours as next frontier.
+                new_nodes: set[str] = set()
+                for e in hop_edges:
+                    new_nodes.add(e["source_node_id"])
+                    new_nodes.add(e["target_node_id"])
+                all_node_ids.update(new_nodes)
+                if len(all_node_ids) >= node_cap:
+                    break
+                frontier = [n for n in new_nodes if n not in visited_frontiers]
+                if not frontier:
+                    break
+            # Dedupe edges by id.
+            seen_edge_ids: set[str] = set()
+            unique_edges: list[dict] = []
+            for e in all_edges:
+                eid = e.get("id")
+                if eid not in seen_edge_ids:
+                    seen_edge_ids.add(eid)  # type: ignore[arg-type]
+                    unique_edges.append(e)
+            edges = unique_edges[:edge_cap]
+            wanted = list(all_node_ids)[:node_cap]
             if wanted:
                 nq = sb.table("kg_nodes").select(node_cols).in_("id", wanted)
                 if self.org_id is not None:
@@ -511,6 +539,12 @@ class SupabaseStore:
         rows = q.limit(1).execute().data or []
         return rows[0] if rows else None
 
+    def clear_kg(self, kb_id: str) -> None:
+        """Delete all nodes and edges for `kb_id` (edges first — FK constraint)."""
+        sb = service_client()
+        sb.table("kg_edges").delete().eq("kb_id", kb_id).execute()
+        sb.table("kg_nodes").delete().eq("kb_id", kb_id).execute()
+
     def kg_stats(self, kb_id: str) -> dict:
         """Node/edge totals + counts by node type and by relation."""
         sb = service_client()
@@ -542,6 +576,79 @@ class SupabaseStore:
             "by_type": by_type,
             "by_relation": by_relation,
         }
+
+    # --- KG intent schema (versioned) ----------------------------------------
+    # Mirrors divergence/knowledge_graph/service.py get_kg_intent/set_kg_intent.
+    # Writes go through the service client (tenancy already verified upstream);
+    # the explicit org_id/kb_id scoping is the invariant that keeps it tenant-safe.
+
+    def get_kg_intent(self, kb_id: str) -> dict | None:
+        """The KB's highest-version approved KG intent schema, or None if never set."""
+        rows = (
+            service_client()
+            .table("kg_schemas")
+            .select("version, schema")
+            .eq("kb_id", kb_id)
+            .order("version", desc=True)
+            .limit(1)
+            .execute()
+        ).data or []
+        if not rows or not isinstance(rows[0], dict):
+            return None
+        row = rows[0]
+        return {"version": row.get("version"), "schema": row.get("schema") or {}}
+
+    def set_kg_intent(self, org_id: str, kb_id: str, schema: dict) -> dict:
+        """Persist an approved schema as the next version (never overwrites history).
+
+        Reads the current max version for `kb_id`, inserts version+1.
+        Returns ``{"version": <new>, "schema": <schema>}``."""
+        sb = service_client()
+        cur = (
+            sb.table("kg_schemas")
+            .select("version")
+            .eq("kb_id", kb_id)
+            .order("version", desc=True)
+            .limit(1)
+            .execute()
+        ).data or []
+        next_version = (cur[0]["version"] if cur and isinstance(cur[0], dict) else 0) + 1
+        sb.table("kg_schemas").insert(
+            {"org_id": org_id, "kb_id": kb_id, "version": next_version, "schema": schema}
+        ).execute()
+        return {"version": next_version, "schema": schema}
+
+    # --- first-run offer-once stamp ------------------------------------------
+
+    def get_init_offered(self, kb_id: str) -> bool:
+        """Return True iff the wizard has already been offered for `kb_id`."""
+        try:
+            rows = (
+                service_client()
+                .table("kbs")
+                .select("init_offered_at")
+                .eq("id", kb_id)
+                .limit(1)
+                .execute()
+            ).data or []
+            if rows and isinstance(rows[0], dict):
+                return bool(rows[0].get("init_offered_at"))
+        except Exception:  # noqa: BLE001 — best-effort
+            pass
+        return False
+
+    def mark_init_offered(self, kb_id: str) -> None:
+        """Stamp `kb_id` with the time the KG schema wizard was offered.
+
+        Uses the service client (KB ownership already verified by resolve_tenant
+        upstream). Silently no-ops on error so a missing migration never breaks
+        the session."""
+        try:
+            service_client().table("kbs").update(
+                {"init_offered_at": _now_iso()}
+            ).eq("id", kb_id).execute()
+        except Exception:  # noqa: BLE001 — best-effort, never raise
+            pass
 
     # --- monitoring — best-effort --------------------------------------------
 
