@@ -12,7 +12,7 @@
     {
       "name": "brain2",
       "source": "./",
-      "description": "Capture developer intent on interruption and replay it as a 30-second resume card. /brain2:resume, /brain2:capture, /brain2:search, /brain2:explore over the brain2 MCP server.",
+      "description": "Capture developer intent on interruption and replay it as a 30-second resume card. /brain2:pickup, /brain2:capture, /brain2:search, /brain2:explore over the brain2 MCP server.",
       "version": "0.1.0",
       "strict": false
     }

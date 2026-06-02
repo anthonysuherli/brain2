@@ -1,12 +1,12 @@
 {
   "name": "brain2",
-  "description": "Context-capture and resume engine. Capture developer intent on interruption and replay it as a 30-second resume card. Skills: /brain2:resume (where I was), /brain2:capture (save context), /brain2:search (grounded answer), /brain2:explore (gap-fill), /brain2:activity (cross-repo work graph). Backed by the brain2 MCP server.",
+  "description": "Context-capture and resume engine. Capture developer intent on interruption and replay it as a 30-second resume card. Skills: /brain2:pickup (where I was + cross-repo selector), /brain2:capture (save context), /brain2:search (grounded answer), /brain2:explore (gap-fill), /brain2:activity (cross-repo work graph). Backed by the brain2 MCP server.",
   "author": {
     "name": "Anthony Suherli",
     "email": "anthonysuherli@gmail.com"
   },
   "skills": [
-    "./skills/resume",
+    "./skills/pickup",
     "./skills/capture",
     "./skills/search",
     "./skills/explore",

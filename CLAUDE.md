@@ -183,6 +183,7 @@ python -m brain2.interfaces.mcp.server          # add to .claude/settings.json
 |---|---|
 | `brain2_capture` | Persist a workspace snapshot |
 | `brain2_resume` | Tap KB → resume card (preamble + coverage) |
+| `brain2_projects` | List every repo+branch you've captured to (powers the `/brain2:pickup` selector) |
 | `brain2_explore` | Run gap-fill pipeline synchronously (blocks ~1-3 min) |
 | `brain2_activity` | Query the cross-repo activity graph (subgraph + NL summary) |
 
@@ -195,7 +196,7 @@ Claude Code behaves for each slash command, calling the `brain2_*` MCP tools.
 ```
 skills/
   _shared/preamble-first.md   shared grounding convention (calls brain2_resume)
-  resume/SKILL.md             /brain2:resume — the "where I was" card
+  pickup/SKILL.md             /brain2:pickup — the "where I was" card + cross-repo selector
   capture/SKILL.md            /brain2:capture — save current context
   search/SKILL.md             /brain2:search <q> — grounded answer from session KB
   explore/SKILL.md            /brain2:explore <p> — force the gap-fill pipeline

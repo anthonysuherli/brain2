@@ -5,7 +5,7 @@ description: Query your cross-repo ACTIVITY knowledge graph — what you've been
 
 # brain2 — Activity
 
-The cross-repo lens. While `/brain2:resume` replays one repo+branch, **activity**
+The cross-repo lens. While `/brain2:pickup` replays one repo+branch, **activity**
 answers "what have I been doing, everywhere" — backed by a knowledge graph that
 accumulates automatically on every `brain2_capture`. Nothing to build; just query.
 
@@ -37,7 +37,7 @@ specifics, read the `nodes`/`edges`:
 
 ## When to reach elsewhere
 
-- Single repo+branch "where was I" → `/brain2:resume` (richer card for the here-and-now).
+- Single repo+branch "where was I" → `/brain2:pickup` (richer card for the here-and-now).
 - A question needing external knowledge → `/brain2:search` (grounds + fills the gap).
 
 The activity graph is read-only here — it grows on its own as captures happen.

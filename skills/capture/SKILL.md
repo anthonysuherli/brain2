@@ -5,7 +5,7 @@ description: Save the current workspace context to the brain2 session KB as a sn
 
 # brain2 — Capture
 
-Persist a workspace snapshot so a later `/brain2:resume` can replay it. The snapshot
+Persist a workspace snapshot so a later `/brain2:pickup` can replay it. The snapshot
 becomes a Finding in the repo+branch KB. The load-bearing field is the
 **`hypothesis`** — a one-line statement of current intent; it makes recovery 3–5×
 faster, so always try to fill it.

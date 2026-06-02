@@ -134,3 +134,18 @@ def resolve_tenant(
     org_id, project_id = store.resolve_project(project, create=create)
     kb_id = store.resolve_kb(org_id, project_id, kb, create=create)
     return TenantContext(user_id, org_id, project_id, kb_id, str(uuid.uuid4()), token)
+
+
+def resolve_store():
+    """Org-scoped Store with no project/kb binding — for cross-repo reads.
+
+    Same identity fork as ``resolve_tenant`` minus the project/kb resolution:
+    local tier uses the single local store; legacy cloud logs the configured
+    MCP user in for an RLS-scoped token. Used by the cross-repo ``brain2_projects``
+    tool (the ``/brain2:pickup`` selector)."""
+    from brain2.store import active_backend, get_store
+
+    if active_backend() == "local":
+        return get_store()
+    _user_id, token = _login()
+    return get_store(token)

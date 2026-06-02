@@ -1,6 +1,6 @@
 ---
 name: explore
-description: Force the brain2 gap-fill pipeline — plan → web search → crawl → extract → merge — to seed or deepen the repo+branch KB from the web, then rebuild the synopsis. Use when /brain2:resume returns coverage='gap', when starting a KB from scratch, or when the user explicitly wants fresh online research persisted into the session KB.
+description: Force the brain2 gap-fill pipeline — plan → web search → crawl → extract → merge — to seed or deepen the repo+branch KB from the web, then rebuild the synopsis. Use when /brain2:pickup returns coverage='gap', when starting a KB from scratch, or when the user explicitly wants fresh online research persisted into the session KB.
 ---
 
 # brain2 — Explore
@@ -37,5 +37,5 @@ synopsis rebuild is scheduled automatically.
 
 State how many findings were persisted. Then re-tap with
 `mcp__plugin_brain2_brain2__brain2_resume(project, kb, query=<topic>)` to show the now-richer card
-and answer whatever prompted the explore. The next `/brain2:resume` will reflect the
+and answer whatever prompted the explore. The next `/brain2:pickup` will reflect the
 new knowledge.

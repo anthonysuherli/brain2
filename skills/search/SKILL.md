@@ -1,6 +1,6 @@
 ---
 name: search
-description: Ground a question in the brain2 session KB, fill the gap from the web if needed, then answer — the ground → grow → answer front door. Use by default when the user asks a question against what this repo+branch session knows; reach for /brain2:resume or /brain2:explore directly only when you want exactly one step.
+description: Ground a question in the brain2 session KB, fill the gap from the web if needed, then answer — the ground → grow → answer front door. Use by default when the user asks a question against what this repo+branch session knows; reach for /brain2:pickup or /brain2:explore directly only when you want exactly one step.
 ---
 
 # brain2 — Search

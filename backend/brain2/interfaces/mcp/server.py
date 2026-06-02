@@ -25,7 +25,7 @@ from brain2.capture.service import persist_snapshot
 from brain2.config import get_config, get_settings
 from brain2.exploration import run_exploration
 from brain2.interfaces.mcp.banner import BRAIN2_BANNER
-from brain2.interfaces.mcp.tenancy import resolve_tenant
+from brain2.interfaces.mcp.tenancy import resolve_store, resolve_tenant
 from brain2.knowledge_graph.activity import query_activity, schedule_activity_update
 from brain2.monitoring.recorder import PREAMBLE_TARGETS
 from brain2.store import get_store
@@ -98,6 +98,20 @@ async def brain2_resume(
         "project": project,
         "kb": kb,
     }
+
+
+@mcp.tool()
+async def brain2_projects() -> dict:
+    """List every repo+branch you've captured to, most-recent first.
+
+    Powers the `/brain2:pickup` selector: each project carries its branches with
+    `last_activity` + `snapshot_count` chips so you can jump back into any repo you've
+    been working in — not just the current git checkout. Org-scoped on cloud, the
+    single local store on the free tier. Returns
+    `{projects: [{project, project_id, kbs: [{kb, kb_id, last_activity, snapshot_count}]}]}`.
+    """
+    store = resolve_store()
+    return {"projects": store.list_projects()}
 
 
 @mcp.tool()
