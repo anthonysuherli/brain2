@@ -2,6 +2,8 @@
 name = "brain2-backend"
 version = "0.1.0"
 description = "brain2 — self-contained context-capture and resume engine."
+license = "MIT"
+authors = [{ name = "Anthony Suherli" }]
 requires-python = ">=3.11"
 
 dependencies = [

@@ -263,3 +263,17 @@ See [`CLAUDE.md`](CLAUDE.md) for:
 - ⬜ **Apple sign-in, end-to-end** — Fly.io deploy + Supabase Apple provider + iOS wiring (designed, in progress)
 - ⬜ **Cross-machine sync** — designed, not yet shipped
 - ⬜ **Team sharing** — designed, not yet shipped
+
+## License
+
+brain2 is open source under the [MIT License](LICENSE) — use it for anything,
+including commercially, as long as the copyright notice is preserved.
+
+"brain2" is a name used by Anthony Suherli; the license covers the code, not the
+name (see [TRADEMARKS.md](TRADEMARKS.md)). brain2 is a self-contained fork of the
+Delapan engine; Delapan itself is separately licensed and not covered by this
+MIT grant.
+
+Contributions are welcome under the inbound = outbound rule with a DCO sign-off
+— see [CONTRIBUTING.md](CONTRIBUTING.md). For the full governance map (security
+disclosure, privacy, code of conduct), see [LEGAL.md](LEGAL.md).

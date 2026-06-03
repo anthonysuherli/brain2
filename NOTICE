@@ -1,0 +1,32 @@
+brain2
+Copyright (c) 2026 Anthony Suherli
+
+This product is licensed under the MIT License. See the LICENSE file for the
+full terms.
+
+------------------------------------------------------------------------------
+Trademarks
+------------------------------------------------------------------------------
+"brain2" is an unregistered trademark of Anthony Suherli. The MIT License
+covers the source code; it does NOT grant any right to use the "brain2" name,
+logo, or branding to imply endorsement of or affiliation with a derivative
+work. See TRADEMARKS.md for the name-use policy.
+
+------------------------------------------------------------------------------
+Relationship to Delapan
+------------------------------------------------------------------------------
+brain2 is a self-contained fork of the Delapan engine. The brain2 source in
+this repository is released under MIT. Delapan itself is a separate work under
+a separate (source-available / BUSL) license and is NOT covered by this
+repository's MIT grant.
+
+------------------------------------------------------------------------------
+Third-party software
+------------------------------------------------------------------------------
+brain2 depends on third-party open-source packages, each under its own
+license. A generated inventory may be produced with:
+
+    pip-licenses --format=markdown        # Python (backend/)
+    npx license-checker --summary         # Node (site/, tooling)
+
+No third-party dependency's license is altered or sublicensed by this NOTICE.
