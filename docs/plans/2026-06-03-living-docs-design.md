@@ -65,16 +65,30 @@ LLM-proposed taxonomy:
 
 All honor "non-blocking, fails silent": a failure degrades to "do nothing visible."
 
-### 1. Auto-capture loop — CC-session-scoped, change-driven
+### 1. Auto-capture loop — CC-session-scoped, **drift-triggered**
 
-- A **`SessionStart` hook** launches `Agent(run_in_background)` running a capture watch
-  that lives for the Claude Code session and dies on `SessionEnd`.
-- Each tick (default ~3 min, `BRAIN2_AUTO_CAPTURE_INTERVAL`): read
-  `git rev-parse`/`git diff --stat`/branch + recent files; compare against a
-  `last-snapshot` fingerprint.
-- **Unchanged → no-op.** **Changed →** distill a one-line hypothesis from the diff and
-  `POST /v1/capture` (the existing capture path). Feeds Findings + activity-KG exactly
-  as today.
+- A **`SessionStart` hook** launches a non-LLM watcher subprocess that lives for the
+  Claude Code session and dies on `SessionEnd` (stop-file signalled by a `SessionEnd`
+  hook).
+- Each tick (default ~3 min, `BRAIN2_AUTO_CAPTURE_INTERVAL`): read git state, then
+  compute **drift vs the last persisted snapshot** using the *same definition the
+  statusline renders* — `moved` (tracked files changed now vs the files the snapshot
+  recorded, via `git diff HEAD --name-only`) and `commits` (commits on HEAD since the
+  snapshot's timestamp).
+- **Capture when drifted** — i.e. `moved >= DRIFT_FILES_WARN (2)` **OR** `commits >= 1`
+  — or when there is no prior snapshot (first anchor). Otherwise no-op. Each capture
+  resets the baseline, so cadence is self-bounded (no tiny near-duplicate snapshots).
+- **Carry forward the last hypothesis.** Auto-captures have no fresh human intent, so
+  they reuse the most recent hypothesis for this repo+branch (intent persists across
+  small drifts) rather than recording a blank one. `trigger="idle"`.
+- **Commit = instant re-anchor.** A best-effort `post-commit` git hook (installed into
+  `<repo>/.git/hooks/`, marker-guarded + append-safe) fires a one-shot capture the
+  moment a commit lands — the strongest drift signal — on top of the poll.
+- **One drift definition, two consumers.** The threshold + algorithm live in
+  `brain2/livingdocs/drift.py`; the watcher imports it, and the statusline
+  (`scripts/brain2-statusline.py`, a zero-dependency script) keeps an in-sync copy.
+  The statusline *shows* "drifted"; the watcher *acts* on it. (Distinct from
+  `knowledge_graph/drift.py`, which is KG-schema drift — unrelated.)
 - Restores the always-on journal lost when the VS Code extension was removed. No
   daemon, tier-agnostic, no duplicate-snapshot noise.
 

@@ -169,6 +169,26 @@ class ActivityConfig(BaseModel):
     rollup_sessions: int = 6
 
 
+class LivingDocsConfig(BaseModel):
+    """Living Docs — two-layer on-disk documentation (notes → curated tree)."""
+
+    root_dirname: str = ".brain2"
+    notes_dirname: str = "notes"
+    docs_dirname: str = "docs"
+    policy_filename: str = "notes-policy.json"
+    state_filename: str = "docs-state.json"
+    # Distill debounce: re-distill when N new notes OR T minutes since last run.
+    distill_debounce_n: int = 3
+    distill_debounce_minutes: int = 60
+    # Flat until this many notes exist, then allow taxonomy clustering.
+    cluster_min_notes: int = 5
+    distill_model: str = "claude-haiku-4-5"
+    distill_fallback_model: str = "openai/gpt-4o-mini"
+    temperature: float = 0.0
+    # Auto-capture watcher.
+    watch_interval_seconds: int = 180
+
+
 class ConceptConfig(BaseModel):
     """Concept distillation — the synthesis tier above findings/activity.
 
@@ -267,6 +287,7 @@ class AppConfig(BaseModel):
     exploration: ExplorationConfig = Field(default_factory=ExplorationConfig)
     embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
     activity: ActivityConfig = Field(default_factory=ActivityConfig)
+    living_docs: LivingDocsConfig = Field(default_factory=LivingDocsConfig)
     concept: ConceptConfig = Field(default_factory=ConceptConfig)
     knowledge_graph: KnowledgeGraphConfig = Field(default_factory=KnowledgeGraphConfig)
     drift: DriftConfig = Field(default_factory=DriftConfig)

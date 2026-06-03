@@ -1,5 +1,5 @@
 {
-  "description": "SessionStart guard: on a new repo, seeds a brain2 KB and offers the KG schema wizard; on an existing KB, asks the drift detector whether to surface a (debounced, non-blocking) schema-(re)design offer.",
+  "description": "SessionStart guard: on a new repo, seeds a brain2 KB and offers the KG schema wizard; on an existing KB, asks the drift detector whether to surface a (debounced, non-blocking) schema-(re)design offer. SessionStart also launches the Living Docs auto-capture watcher (background, change-driven); SessionEnd stops it.",
   "hooks": {
     "SessionStart": [
       {
@@ -8,6 +8,35 @@
           {
             "type": "command",
             "command": "python ${CLAUDE_PLUGIN_ROOT}/hooks/first-run-init.py",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "python ${CLAUDE_PLUGIN_ROOT}/hooks/auto-capture.py",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python ${CLAUDE_PLUGIN_ROOT}/hooks/auto-capture-stop.py",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python ${CLAUDE_PLUGIN_ROOT}/hooks/session-note.py",
             "timeout": 30
           }
         ]
