@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>brain2 — context-capture &amp; resume engine</title>
-<meta name="description" content="Captures your branch, open files, git diff, and a one-line hypothesis the moment you're interrupted — and replays it as a 30-second resume card when you're back. Local-first, loopback-only." />
+<title>brain2 — a knowledge base that maintains itself</title>
+<meta name="description" content="brain2 watches you work, distills what it learns into one personal graph, and keeps it organized in the background — across every repo and machine. You manage it by conversation; it asks for guidance at one seam: when its schema needs to change. Local-first, loopback-only." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -33,74 +33,44 @@
     <div class="wrap">
       <div class="t-hero">
         <div>
-          <div class="kicker"><span class="mark">◌</span> context-capture &amp; resume engine · local-first</div>
-          <h1>Nine and a half minutes,
-or thirty seconds.</h1>
+          <div class="kicker"><span class="mark">◌</span> brain2 · the self-maintaining knowledge base</div>
+          <h1>A knowledge base
+that maintains itself.</h1>
 
-          <div class="tax-line">
-            <span><span class="big">≈9.5&nbsp;min</span> rebuilding context</span>
-            <span class="arrow">──▶</span>
-            <span><span class="big">0:30</span> resume card</span>
-          </div>
+          <p class="subline">brain2 watches you work, distills what it learns into one personal graph, and keeps it organized in the background — across every repo and every machine. You manage it by conversation; it asks for your guidance at exactly one seam: when its schema needs to change.</p>
 
-          <p class="subline">Captures your branch, open files, git diff, and a one-line hypothesis the moment you're interrupted — and replays it as a 30-second resume card when you're back.</p>
+          <form class="hero-form" onsubmit="return false;">
+            <input type="email" placeholder="your email" aria-label="email for portable cloud early access" />
+            <button class="btn primary" type="submit">request cloud access ›</button>
+          </form>
+          <div class="hero-microcopy">free &amp; local today — <a href="install.html">install in two lines ›</a> &nbsp;·&nbsp; portable cloud, early access</div>
 
-          <div class="hero-ctas">
-            <a class="btn primary big" href="install.html">install free <span class="muted">· runs locally</span></a>
-            <a class="btn big" href="how-it-works.html">how it works ›</a>
-          </div>
-          <div class="hero-install">
-            <div class="install">
-              <span class="dollar">$</span>
-              <code>BRAIN2_BACKEND=local python -m brain2.api.main</code>
-              <button class="copy" data-copy="BRAIN2_BACKEND=local python -m brain2.api.main" aria-label="copy run command">copy</button>
-            </div>
+          <div class="hero-chips">
+            <span class="hchip"><b>captures</b> by watching</span>
+            <span class="hchip"><b>distills</b> into concepts</span>
+            <span class="hchip"><b>guided</b> at the schema</span>
+            <span class="hchip"><b>portable</b> · one graph, every repo</span>
           </div>
         </div>
 
-        <!-- resume card (hero) -->
-        <div class="card">
-          <div class="card-bar">
-            <span class="mark">◌</span>
-            <span class="proj">brain2</span>
-            <span class="sep">·</span>
-            <span class="branch">dev</span>
-            <span class="spacer"></span>
-            <span class="live"></span>
-            <span class="ago">3 minutes ago</span>
+        <!-- live session (hero) -->
+        <div class="session">
+          <div class="session-bar">
+            <span class="dots"><i class="r"></i><i></i><i></i></span>
+            <span class="ttl">brain2@engine — session</span>
+            <span class="live"><span class="d"></span> live</span>
           </div>
-          <div class="card-body">
-            <div class="card-label">HYPOTHESIS</div>
-            <p class="card-hypo">Wiring <span class="id">SupabaseStore</span> behind <span class="id">get_store()</span> so the cloud tier carries the per-request token.</p>
-            <div class="card-meta">
-              <span><span class="n">7</span> snapshots</span>
-              <span class="bar">│</span>
-              <span><span class="n">4</span> files</span>
-              <span class="spacer"></span>
-              <button class="cov" data-cov="rich"><span class="dot"></span> coverage: rich</button>
-            </div>
-            <div class="card-where">
-              <div class="card-label">WHERE YOU WERE</div>
-              <div class="file cursor">
-                <span class="pip">▸</span><span class="dir">src/brain2/store/</span><span class="name">supabase.py</span>
-                <span class="cur">cursor</span><span class="grow"></span><span class="add">+84</span><span class="del">−12</span>
-              </div>
-              <div class="file">
-                <span class="pip">·</span><span class="dir">src/brain2/api/</span><span class="name">deps.py</span>
-                <span class="grow"></span><span class="add">+22</span><span class="del">−3</span>
-              </div>
-              <div class="file">
-                <span class="pip">·</span><span class="dir">src/brain2/store/</span><span class="name">__init__.py</span>
-                <span class="grow"></span><span class="add">+6</span><span class="del">−1</span>
-              </div>
-              <div class="diffstat">
-                <span>git diff --stat</span>
-                <span class="rule"></span>
-                <span class="files">4 files</span>
-                <span class="add">+112</span>
-                <span class="del">−16</span>
-              </div>
-            </div>
+          <div class="session-body">
+            <div class="ln"><span class="cmd">brain2</span> <span class="kw">capture</span> <span class="arg">dev · 4 files · auto-snapshot</span></div>
+            <div class="ln sub"><span class="ok">✓</span> <span class="arg">activity graph + concept distilled · background</span></div>
+            <div class="ln"><span class="cmd">brain2</span> <span class="kw">watch</span> <span class="arg">residual 7/20 · ontology drift ↑</span></div>
+            <div class="ln sub"><span class="gp">◆</span> <span class="hot">unplaced</span> <span class="session-tag">deployment</span> <span class="session-tag">rollback</span> <span class="session-tag">incident</span></div>
+            <div class="ln"><span class="cmd">brain2</span> <span class="kw">schema</span> <span class="arg">drift detected → propose</span></div>
+            <div class="ln sub"><span class="arg">one question at a time · you steer</span></div>
+            <div class="ln sub"><span class="add">+</span> <span class="hot">node</span> <span class="arg">Deployment</span> &nbsp;&nbsp;<span class="add">+</span> <span class="hot">edge</span> <span class="arg">caused→ Incident</span></div>
+            <div class="ln sub"><span class="ok">✓</span> <span class="arg">schema v3 · 7 residuals re-typed</span></div>
+            <div class="ln"><span class="cmd">brain2</span> <span class="kw">context</span> <span class="arg">repoA/dev → repoB/main</span></div>
+            <div class="ln sub"><span class="gp">▸</span> <span class="arg">~1,750 tokens · concepts over evidence · synced</span><span class="cursor-blk"></span></div>
           </div>
         </div>
       </div>

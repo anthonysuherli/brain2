@@ -440,8 +440,63 @@ footer { border-top: 1px solid var(--line); background: var(--well); padding: 46
 .note .m { color: var(--accent); flex: 0 0 auto; }
 .note code { color: var(--text); }
 
+/* ── Hero form (cloud early access) ────────────────────────────────── */
+.hero-form { display: flex; gap: 10px; max-width: 470px; margin: 30px 0 14px; flex-wrap: wrap; }
+.hero-form input {
+  flex: 1; min-width: 200px; background: var(--well); border: 1px solid var(--line2);
+  border-radius: 4px; color: var(--text); font: 400 13.5px var(--mono); padding: 12px 14px; outline: none;
+  transition: border-color .15s;
+}
+.hero-form input::placeholder { color: var(--dim2); }
+.hero-form input:focus { border-color: var(--accent); }
+.hero-form .btn.primary { white-space: nowrap; }
+.hero-microcopy { font-size: 12.5px; color: var(--dim2); margin-bottom: 28px; }
+.hero-microcopy a { color: var(--green); text-decoration: none; }
+.hero-microcopy a:hover { text-decoration: underline; }
+
+/* ── Hero feature chips ────────────────────────────────────────────── */
+.hero-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.hero-chips .hchip {
+  font-size: 12px; color: var(--dim); border: 1px solid var(--line2); border-radius: 3px;
+  padding: 7px 12px; background: var(--panel); white-space: nowrap;
+}
+.hero-chips .hchip b { color: var(--text); font-weight: 500; }
+
+/* ── Live session (hero artifact) ──────────────────────────────────── */
+.session {
+  background: var(--panel); border: 1px solid var(--line2); border-radius: 5px;
+  overflow: hidden; box-shadow: 0 24px 60px rgba(0, 0, 0, .55);
+}
+.session-bar {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+  border-bottom: 1px solid var(--line); background: var(--panel2);
+}
+.session-bar .dots { display: flex; gap: 7px; }
+.session-bar .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line2); display: block; }
+.session-bar .dots i.r { background: var(--accent); }
+.session-bar .ttl { font-size: 12.5px; color: var(--dim); }
+.session-bar .live { margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--green); }
+.session-bar .live .d { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+.session-body { padding: 16px 18px 18px; font-size: 13px; line-height: 1.9; overflow-x: auto; }
+.session-body .ln { display: flex; align-items: baseline; gap: 9px; white-space: nowrap; }
+.session-body .ln.sub { padding-left: 8px; }
+.session-body .cmd { color: var(--accent); }            /* brain2 brand token */
+.session-body .kw { color: var(--purple-bright); }      /* subcommand */
+.session-body .arg { color: var(--dim); }
+.session-body .hot { color: var(--text); }
+.session-body .ok { color: var(--green); }
+.session-body .add { color: var(--green); }
+.session-body .gp { color: var(--accent); }
+.session-tag { background: var(--accent-22); color: var(--accent); border-radius: 2px; padding: 1px 7px; font-size: 12px; }
+.cursor-blk {
+  display: inline-block; width: 7px; height: 14px; margin-left: 4px; vertical-align: -2px;
+  background: var(--green); animation: blink 1.1s step-end infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
 /* ── Responsive ────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
+  .session-body { font-size: 12px; }
   .t-hero, .t-context { grid-template-columns: 1fr; gap: 40px; }
   .t-where, .t-tiers { grid-template-columns: 1fr; }
   .t-how, .engine-flow { grid-template-columns: 1fr; }
