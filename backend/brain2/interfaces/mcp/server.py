@@ -33,7 +33,7 @@ from brain2.knowledge_graph.builder import build_graph
 from brain2.knowledge_graph.drift import assess_drift
 from brain2.knowledge_graph.models import KGSchema
 from brain2.knowledge_graph.schema import propose_schema, validate_schema
-from brain2.livingdocs.distill import schedule_distill
+from brain2.livingdocs.distill import run_distill, schedule_distill
 from brain2.livingdocs.notes import persist_note
 from brain2.livingdocs.paths import DocPaths
 from brain2.livingdocs.policy import NotePolicy, load_policy, save_policy
@@ -136,6 +136,15 @@ def _policy_set_impl(project, kb, project_path, policy):
     return {"ok": True, "policy": pol.model_dump(), "project": project, "kb": kb}
 
 
+async def _distill_impl(project, kb, project_path, force=False):
+    ctx = resolve_tenant(project, kb, create=True)
+    if force:
+        res = await run_distill(ctx, project_path=project_path, kb=kb)
+        return {"distilled": True, "forced": True, **res, "project": project, "kb": kb}
+    schedule_distill(ctx, project_path=project_path, kb=kb)
+    return {"distilled": False, "forced": False, "scheduled": True, "project": project, "kb": kb}
+
+
 @mcp.tool()
 def brain2_notes_policy_get(project: str, kb: str, project_path: str) -> dict:
     """Read the per-KB note-taking policy (section template + free-text steer) from
@@ -150,6 +159,14 @@ def brain2_notes_policy_set(project: str, kb: str, project_path: str, policy: di
     steer: str}. Validates before writing; on a bad shape returns {ok: False, errors}.
     On success returns {ok: True, policy, project, kb}. Used by /brain2:notes."""
     return _policy_set_impl(project, kb, project_path, policy)
+
+
+@mcp.tool()
+async def brain2_distill(project: str, kb: str, project_path: str, force: bool = False) -> dict:
+    """(Re)build the curated .brain2/docs/ tree from the KB's session notes. `force=True`
+    distills now and returns {distilled, doc_count, folders}; otherwise it just nudges the
+    debounced background distiller. Used by /brain2:docs --rebuild."""
+    return await _distill_impl(project, kb, project_path, force)
 
 
 @mcp.tool()
