@@ -77,17 +77,17 @@ that maintains itself.</h1>
     </div>
   </section>
 
-  <!-- ── THE TAX ─────────────────────────────────────────────────────── -->
+  <!-- ── THE PROBLEM ─────────────────────────────────────────────────── -->
   <section id="tax" class="sec bordered washed">
     <div class="wrap">
-      <div class="kicker"><span class="mark">◌</span> the tax</div>
+      <div class="kicker"><span class="mark">◌</span> the problem</div>
       <div class="t-context tax-grid">
         <div>
           <div class="stat">9.5<span class="unit">min</span></div>
-          <p class="tax-copy">The average time to rebuild mental context after an interruption — reopening files, re-reading the diff, remembering the plan.</p>
+          <p class="tax-copy">The visible cost — the time to rebuild mental context after one interruption. The deeper cost is quieter: every insight you don't write down evaporates, and nothing you learn in one repo ever carries to the next.</p>
         </div>
         <div class="reckon">
-          <div class="hdr"># cost per day</div>
+          <div class="hdr"># knowledge that doesn't compound</div>
           <div class="eq">
             <span><span class="n">6</span> switches</span>
             <span class="op">×</span>
@@ -96,7 +96,7 @@ that maintains itself.</h1>
             <span class="total">≈57 min<span class="per">/day</span></span>
           </div>
           <div class="div"></div>
-          <p>Nearly an hour a day reconstructing state you already had. brain2 hands it back instead.</p>
+          <p>Nearly an hour a day reconstructing state you already had — and a graph of hard-won context that resets to zero with every new repo. brain2 keeps it instead, so the next session starts ahead.</p>
         </div>
       </div>
     </div>
@@ -106,47 +106,35 @@ that maintains itself.</h1>
   <section id="how" class="sec" style="padding:70px 0;">
     <div class="wrap">
       <div class="kicker"><span class="mark">◌</span> how it works</div>
-      <h2 class="sec-title">A two-step loop. No ritual to remember.</h2>
-      <div class="t-how">
-        <div class="step">
-          <div class="step-head">
-            <span class="step-n">01</span>
-            <span class="step-tag">ON INTERRUPTION</span>
+      <h2 class="sec-title">It maintains itself. You guide it once — at the schema.</h2>
+      <div class="engine-flow" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stage">
+          <div class="sh">
+            <span class="sn">01</span>
+            <span class="sv">background</span>
           </div>
-          <h3>Capture</h3>
-          <p>The moment you switch away, brain2 snapshots your working state — nothing to run, nothing to tag.</p>
-          <div class="step-list">
-            <div class="row"><span class="b">›</span><span class="x">branch + HEAD</span></div>
-            <div class="row"><span class="b">›</span><span class="x">open &amp; cursor files</span></div>
-            <div class="row"><span class="b">›</span><span class="x">git diff --stat</span></div>
-            <div class="row"><span class="b">›</span><span class="x">one-line hypothesis</span></div>
-          </div>
+          <h3>Watch</h3>
+          <p>A subagent watches you work and snapshots state on every change — branch, files, diff, a one-line hypothesis — then distills each session into <span class="id">concepts</span> in your graph. No command to run, no note to write.</p>
         </div>
-        <div class="arrow">
-          <span class="m">◌</span>
-          <span class="a">──▶</span>
-          <span class="t">0:30</span>
+        <div class="stage">
+          <div class="sh">
+            <span class="sn">02</span>
+            <span class="sv">guided</span>
+          </div>
+          <h3>Organize</h3>
+          <p>brain2 tracks what doesn't fit its ontology. When that residual crosses a threshold — or you've collected enough to start — it offers, at a turn boundary, to <span class="id">design the schema</span> with you: one question at a time, you steer, it applies.</p>
         </div>
-        <div class="step">
-          <div class="step-head">
-            <span class="step-n">02</span>
-            <span class="step-tag">ON RETURN</span>
+        <div class="stage">
+          <div class="sh">
+            <span class="sn">03</span>
+            <span class="sv">portable</span>
           </div>
-          <h3>Resume</h3>
-          <p>Come back to one card. Read the latest hypothesis, snapshot count and coverage band — then keep going.</p>
-          <div class="minicard">
-            <div class="mh">◌ brain2 · dev · 3m ago</div>
-            <div class="mb">Wiring <span class="id">SupabaseStore</span> behind get_store()…</div>
-            <div class="mf">
-              <span>7 snapshots</span>
-              <span class="bar">│</span>
-              <span class="ok">● coverage: rich</span>
-            </div>
-          </div>
+          <h3>Ground</h3>
+          <p>Anywhere you work, tap the graph for <span class="id">~1,750 tokens</span> of concepts over evidence — scoped to where you are, drawn from every repo. On the cloud tier the same slice follows you across machines.</p>
         </div>
       </div>
       <p style="margin-top:26px; font-size:13px; color:var(--dim);">
-        The card is one read of a deeper store. <a class="morelink" href="how-it-works.html">See the knowledge engine underneath ›</a>
+        Everything but the schema step runs in the background and fails silent. <a class="morelink" href="how-it-works.html">See the knowledge engine underneath ›</a>
       </p>
     </div>
   </section>
@@ -224,7 +212,7 @@ that maintains itself.</h1>
       <div class="foot-top">
         <div class="foot-brand">
           <span class="b"><span class="mark">◌</span> brain2</span>
-          <p>Context-capture &amp; resume engine. Local-first, loopback-only, yours.</p>
+          <p>A knowledge base that maintains itself. Local-first, loopback-only, yours.</p>
         </div>
         <div class="foot-cols">
           <div class="foot-col">
@@ -245,7 +233,7 @@ that maintains itself.</h1>
           </div>
         </div>
       </div>
-      <div class="foot-base">◌ delapan mark · brain2 — captured locally, replayed in 30 seconds.</div>
+      <div class="foot-base">◌ delapan mark · brain2 — captured while you work, organized in the background, yours across every repo.</div>
     </div>
   </footer>
 
