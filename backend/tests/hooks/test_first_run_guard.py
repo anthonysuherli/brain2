@@ -35,6 +35,8 @@ repo_identity = _hook.repo_identity
 derive_project_kb = _hook.derive_project_kb
 build_directive = _hook.build_directive
 check_kb_exists = _hook.check_kb_exists
+pending_schema_offer = _hook.pending_schema_offer
+build_offer_directive = _hook.build_offer_directive
 
 
 # ---------------------------------------------------------------------------
@@ -219,12 +221,13 @@ def test_main_emits_directive_for_first_run(capsys, tmp_path):
     assert "repo" in out["additionalContext"]
 
 
-def test_main_silent_when_kb_exists(capsys, tmp_path):
-    """main() should produce no output when the KB already exists."""
+def test_main_silent_when_kb_exists_and_no_offer(capsys, tmp_path):
+    """KB exists and the detector has nothing to offer → no output."""
     with (
         patch.object(_hook, "repo_identity", return_value="github.com/user/repo"),
         patch.object(_hook, "derive_project_kb", return_value=("repo", "main")),
         patch.object(_hook, "check_kb_exists", return_value=True),
+        patch.object(_hook, "pending_schema_offer", return_value=None),
     ):
         hook_input = json.dumps({"cwd": str(tmp_path)})
         sys.stdin = __import__("io").StringIO(hook_input)
@@ -235,6 +238,63 @@ def test_main_silent_when_kb_exists(capsys, tmp_path):
 
     captured = capsys.readouterr()
     assert captured.out == ""
+
+
+def test_main_emits_drift_offer_when_kb_exists(capsys, tmp_path):
+    """KB exists and the detector says to offer → emit the drift directive."""
+    verdict = {
+        "mode": "drift",
+        "residual": 12,
+        "offer_line": "Your knowledge graph has drifted: 12/40 nodes don't fit schema v2 — reshape it? `/brain2:schema`",
+        "should_offer": True,
+    }
+    with (
+        patch.object(_hook, "repo_identity", return_value="github.com/user/repo"),
+        patch.object(_hook, "derive_project_kb", return_value=("repo", "main")),
+        patch.object(_hook, "check_kb_exists", return_value=True),
+        patch.object(_hook, "pending_schema_offer", return_value=verdict),
+    ):
+        hook_input = json.dumps({"cwd": str(tmp_path)})
+        sys.stdin = __import__("io").StringIO(hook_input)
+        try:
+            _hook.main()
+        finally:
+            sys.stdin = sys.__stdin__
+
+    captured = capsys.readouterr()
+    out = json.loads(captured.out)
+    assert "additionalContext" in out
+    assert "drifted" in out["additionalContext"]
+    assert "brain2_mark_drift_offered" in out["additionalContext"]
+    assert "residual=12" in out["additionalContext"]
+
+
+# ---------------------------------------------------------------------------
+# build_offer_directive
+# ---------------------------------------------------------------------------
+
+
+def test_build_offer_directive_drift_stamps_drift_marker():
+    verdict = {"mode": "drift", "residual": 7, "offer_line": "drifted — reshape? `/brain2:schema`"}
+    d = build_offer_directive("repo", "main", verdict)
+    assert "brain2_mark_drift_offered" in d
+    assert "residual=7" in d
+    assert "/brain2:schema" in d
+    assert "drifted" in d  # the offer_line is surfaced verbatim
+
+
+def test_build_offer_directive_cold_start_stamps_init_offered():
+    verdict = {"mode": "cold_start", "offer_line": "enough collected — design a schema? `/brain2:schema`"}
+    d = build_offer_directive("repo", "main", verdict)
+    assert "brain2_mark_init_offered" in d
+    assert "brain2_mark_drift_offered" not in d
+    assert "do not block" in d.lower()  # non-blocking contract is stated
+
+
+def test_pending_schema_offer_none_when_gate_disabled(monkeypatch):
+    """The BRAIN2_SCHEMA_DRIFT=0 kill switch short-circuits to None (silent)."""
+    monkeypatch.setenv("BRAIN2_SCHEMA_DRIFT", "0")
+    assert pending_schema_offer("repo", "main") is None
 
 
 def test_main_silent_when_not_git_repo(capsys, tmp_path):

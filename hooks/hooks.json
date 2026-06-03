@@ -1,5 +1,5 @@
 {
-  "description": "SessionStart first-run detection: seeds a brain2 KB and offers the KG schema wizard on first open of a new repo.",
+  "description": "SessionStart guard: on a new repo, seeds a brain2 KB and offers the KG schema wizard; on an existing KB, asks the drift detector whether to surface a (debounced, non-blocking) schema-(re)design offer.",
   "hooks": {
     "SessionStart": [
       {

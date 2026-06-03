@@ -1,12 +1,18 @@
-"""brain2 SessionStart hook — first-run initialisation guard.
+"""brain2 SessionStart hook — first-run init + schema-offer guard.
 
     python hooks/first-run-init.py
 
 Reads the hook input JSON from stdin (provided by the Claude Code harness),
 determines whether this repo already has a brain2 KB, and either:
-  * Emits ``{"additionalContext": "<directive>"}`` to stdout to trigger a
-    background init subagent, or
-  * Exits silently (KB already exists, not a git repo, or backend unreachable).
+  * **No KB** → emits a first-run directive (seed the KB + offer the schema wizard).
+  * **KB exists** → asks the drift detector whether to surface a KG-schema offer
+    *now* (cold-start or drift); emits a one-line, debounced, non-blocking offer
+    only when warranted — otherwise stays completely silent.
+  * Exits silently otherwise (not a git repo, or backend unreachable).
+
+This is the turn-boundary **surfacing** path for the self-maintaining KB's one
+human seam: capture/distill/graph-population happen in the background; the schema
+is the only thing brain2 taps the user about, and only when the detector says so.
 
 Design goals
 ------------
@@ -177,6 +183,79 @@ def check_kb_exists(project: str, kb: str) -> bool | None:
         return None
 
 
+def pending_schema_offer(project: str, kb: str) -> dict | None:
+    """Best-effort: should brain2 surface a KG-schema offer for an *existing* KB now?
+
+    Mirrors the ``brain2_schema_drift`` MCP tool in-process (the hook shares the
+    venv). Returns the verdict dict when the detector says to offer **now**
+    (``should_offer`` and an actionable mode — ``drift`` or ``cold_start``), else
+    ``None`` — so a session with no drift stays completely silent: no context
+    injected, no work for Claude.
+
+    Fail-closed: a disabled ``BRAIN2_SCHEMA_DRIFT`` gate, an unreachable backend, an
+    unbuilt graph, or any error all yield ``None``. Must never crash session start.
+    """
+    if os.getenv("BRAIN2_SCHEMA_DRIFT", "1") == "0":
+        return None
+    try:
+        from brain2.config import get_config  # noqa: PLC0415
+        from brain2.interfaces.mcp.tenancy import resolve_tenant  # noqa: PLC0415
+        from brain2.knowledge_graph.drift import assess_drift  # noqa: PLC0415
+        from brain2.store import get_store  # noqa: PLC0415
+
+        ctx = resolve_tenant(project, kb, create=False)
+        store = get_store(ctx.access_token, org_id=ctx.org_id)
+        verdict = assess_drift(
+            store,
+            ctx.kb_id,
+            get_config().drift,
+            init_offered=store.get_init_offered(ctx.kb_id),
+            drift_marker=store.get_drift_marker(ctx.kb_id),
+        )
+    except Exception:  # noqa: BLE001 — best-effort; any failure → stay silent
+        return None
+
+    if verdict.should_offer and verdict.mode in ("drift", "cold_start"):
+        return verdict.to_dict()
+    return None
+
+
+def build_offer_directive(project: str, kb: str, verdict: dict) -> str:
+    """Return the additionalContext directive that surfaces a schema offer once.
+
+    Non-blocking by construction: it tells Claude to print the one-line offer, stamp
+    the debounce marker so it won't re-nag, and run ``/brain2:schema`` *only* if the
+    user accepts. The stamp differs by mode — cold-start uses ``mark_init_offered``,
+    drift uses ``mark_drift_offered`` (at the current residual count)."""
+    mode = verdict.get("mode")
+    offer = verdict.get("offer_line") or (
+        f"brain2's knowledge graph for '{project}' may need a schema — `/brain2:schema`"
+    )
+    if mode == "cold_start":
+        stamp = (
+            "call mcp__brain2__brain2_mark_init_offered with "
+            f"project='{project}', kb='{kb}'"
+        )
+    else:  # drift
+        residual = int(verdict.get("residual") or 0)
+        stamp = (
+            "call mcp__brain2__brain2_mark_drift_offered with "
+            f"project='{project}', kb='{kb}', residual={residual}"
+        )
+    return (
+        f"brain2 schema offer ({mode}) for project '{project}' (kb='{kb}'). "
+        "Its knowledge graph has accumulated entities the current ontology can't "
+        "place.\n\n"
+        "Instructions (non-blocking — surface once, do NOT interrupt the user's "
+        "current task):\n"
+        f'1. Print exactly one line to the user: "{offer}"\n'
+        f"2. Immediately {stamp} so this offer is not repeated until warranted again.\n"
+        "3. Only if the user accepts, run /brain2:schema (the guided KG-schema "
+        "wizard). Otherwise carry on — do not block.\n"
+        "Do not re-raise this offer yourself; the stamp in step 2 handles debouncing."
+    )
+
+
 # ---------------------------------------------------------------------------
 # Hook entry point
 # ---------------------------------------------------------------------------
@@ -215,7 +294,11 @@ def main() -> None:
 
     exists = check_kb_exists(project, kb)
     if exists is True:
-        # KB already exists — normal session, no directive needed.
+        # KB already exists — a normal session. Surface a KG-schema offer only if
+        # the drift detector says so right now; otherwise stay silent.
+        verdict = pending_schema_offer(project, kb)
+        if verdict:
+            print(json.dumps({"additionalContext": build_offer_directive(project, kb, verdict)}))
         return
     if exists is None:
         # Backend unreachable — fail closed, don't emit.
