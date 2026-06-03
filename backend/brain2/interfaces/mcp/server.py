@@ -35,6 +35,8 @@ from brain2.knowledge_graph.models import KGSchema
 from brain2.knowledge_graph.schema import propose_schema, validate_schema
 from brain2.livingdocs.distill import schedule_distill
 from brain2.livingdocs.notes import persist_note
+from brain2.livingdocs.paths import DocPaths
+from brain2.livingdocs.policy import NotePolicy, load_policy, save_policy
 from brain2.monitoring.recorder import PREAMBLE_TARGETS
 from brain2.store import get_store
 
@@ -117,6 +119,37 @@ async def brain2_note(
     return await _note_impl(
         project, kb, project_path, content, session_id, title, captured_at, source
     )
+
+
+def _policy_get_impl(project, kb, project_path):
+    paths = DocPaths(project_path=project_path, kb=kb)
+    pol = load_policy(paths)
+    return {"policy": pol.model_dump(), "project": project, "kb": kb}
+
+
+def _policy_set_impl(project, kb, project_path, policy):
+    try:
+        pol = NotePolicy.model_validate(policy)
+    except Exception as exc:  # noqa: BLE001 — return errors, never crash the tool
+        return {"ok": False, "errors": [str(exc)], "project": project, "kb": kb}
+    save_policy(DocPaths(project_path=project_path, kb=kb), pol)
+    return {"ok": True, "policy": pol.model_dump(), "project": project, "kb": kb}
+
+
+@mcp.tool()
+def brain2_notes_policy_get(project: str, kb: str, project_path: str) -> dict:
+    """Read the per-KB note-taking policy (section template + free-text steer) from
+    .brain2/notes-policy.json. Returns {policy: {sections, steer}, project, kb}.
+    Returns the default policy if none is set yet."""
+    return _policy_get_impl(project, kb, project_path)
+
+
+@mcp.tool()
+def brain2_notes_policy_set(project: str, kb: str, project_path: str, policy: dict) -> dict:
+    """Persist the per-KB note-taking policy. `policy` = {sections: [{name, enabled}],
+    steer: str}. Validates before writing; on a bad shape returns {ok: False, errors}.
+    On success returns {ok: True, policy, project, kb}. Used by /brain2:notes."""
+    return _policy_set_impl(project, kb, project_path, policy)
 
 
 @mcp.tool()
