@@ -1,7 +1,9 @@
 # brain2 — Guided, Self-Maintaining, Portable Personal KB — design
 
 **Date:** 2026-06-03
-**Status:** Design (validated via brainstorming; not yet implemented)
+**Status:** Design (validated via brainstorming) — **detector + offer-computation +
+guided wizard SKILL implemented** in commit `2c2961a`; the turn-boundary surfacing hook
+(D4) is the remaining gap. See §10 for the as-built reconciliation.
 **Working name:** Guided KB / schema-drift loop
 **Relationship:** Umbrella positioning over `2026-06-01-personal-knowledge-engine-design.md`
 (concept tier + portable context) and `2026-06-03-living-docs-design.md` (background
@@ -250,3 +252,27 @@ sections of both parent designs warn against.
 - Cloud-tier schema sync as a concrete feature (today: designed north-star).
 - Whether the cold-start offer should also seed from `/brain2:explore` web findings,
   not just activity captures.
+
+## 10. As-built reconciliation (commit `2c2961a`)
+
+The detector, offer-computation, and guided wizard SKILL shipped in `2c2961a`
+(`knowledge_graph/drift.py`, `brain2_schema_drift` MCP tool, `skills/schema/SKILL.md`,
+`DriftConfig`, Store `get_kg_intent`/`set_kg_schema`, tests). Where it differs from
+§§2–6 above, **the as-built is authoritative** for the items marked *adopt*:
+
+| # | Design (§) | As-built | Resolution |
+|---|---|---|---|
+| **D1 signal** | residual = catch-all **OR** `conf<τ_fit` **OR** `cosine<τ_sim` (§2) | residual = type `"other"` **OR** off-schema type — type-only, free-rides on `kg_stats().by_type` | **Adopt as-built.** `τ_fit`/`τ_sim` dropped (no per-node confidence/embedding read needed). Cheaper, same intent. |
+| **D2 window** | count-based last-`W` extractions (§2) | residual ratio over the **whole graph** (no window) | **Open.** As-built is conservative but dilutes recent drift as the graph grows. Revisit with a windowed/recency-weighted denominator once graphs are large; behind config. |
+| **D3 state** | on-disk `schema-state.json` ledger (§2) | Store-backed markers (`init_offered` stamp + `drift_marker` = residual at last offer); `assess_drift(...)` is a pure function over them | **Adopt as-built** — tier-agnostic + testable; supersedes the JSON-file ledger. |
+| **D4 surfacing** | `SessionStart` hook auto-emits the offer at a turn boundary (§3) | **not built.** `should_offer`/`offer_line` are computed; surfacing is **pull-only** via `/brain2:schema` | 🔴 **Remaining gap.** Recommended fix: a `SessionStart` hook that injects a one-line instruction for Claude to call `brain2_schema_drift` and surface `offer_line` when `should_offer` (no new HTTP endpoint; stays agentic). |
+| **D5 proposal** | reintroduce delapan `propose_schema` backend fn (§4) | proposal is **agentic** — the wizard SKILL (`_shared/kg-schema-wizard.md`) drafts the delta; no backend fn ported | **Adopt as-built** — more on-positioning ("agentically-managed"); `knowledge_graph/schema.py` not needed. |
+| **D6 re-type** | bounded re-type of just the residual seed; full rebuild deferred (§5) | **full graph rebuild** under the new schema (`brain2_build_graph(use_schema=True, rebuild=True)`); "full-rebuild only — no incremental today" | **Adopt as-built**, with a caveat: full re-extraction is more thorough but costlier on large graphs. The bounded-re-type / incremental path becomes the future optimization (§9). |
+
+**Implemented `DriftConfig` defaults:** `min_nodes=8`, `cold_start_min_nodes=12`,
+`drift_ratio=0.30`, `drift_floor=4`, `rearm_delta=6`. (Supersedes the env-name list in
+§6: no `τ_fit`/`τ_sim`, no `W`, per D1/D2.)
+
+**Net:** the trigger half of the loop is built and solid. One gap (D4) stands between
+this and the "one tap on the shoulder" promise; one item (D2) is a known-conservative
+simplification to revisit at scale.
