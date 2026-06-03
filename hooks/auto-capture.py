@@ -115,19 +115,65 @@ def paths_for(cwd: str) -> tuple[str, str]:
     return str(brain2_dir / ".watch.stop"), str(brain2_dir / ".watch.pid")
 
 
+_POST_COMMIT_MARKER = "# brain2-living-docs auto-capture (re-anchor on commit)"
+
+
+def install_post_commit_hook(cwd: str, python_exe: str) -> bool:
+    """Best-effort install of a ``post-commit`` hook that re-anchors a snapshot on commit.
+
+    Marker-guarded (idempotent) and append-safe — never clobbers an existing hook;
+    appends our line if one is already present. Uses ``git rev-parse --git-path hooks``
+    so it resolves correctly for worktrees too. Returns True iff our line is present
+    afterwards. Never raises.
+    """
+    try:
+        res = subprocess.run(
+            ["git", "rev-parse", "--git-path", "hooks"],
+            cwd=cwd, capture_output=True, text=True, timeout=5,
+        )
+        if res.returncode != 0 or not res.stdout.strip():
+            return False
+        hooks_dir = Path(res.stdout.strip())
+        if not hooks_dir.is_absolute():
+            hooks_dir = Path(cwd) / hooks_dir
+        hooks_dir.mkdir(parents=True, exist_ok=True)
+        hook = hooks_dir / "post-commit"
+
+        line = (
+            f'(BRAIN2_WATCH_CWD="$(git rev-parse --show-toplevel)" '
+            f'"{python_exe}" -m brain2.livingdocs.watch --once >/dev/null 2>&1 &)  '
+            f"{_POST_COMMIT_MARKER}\n"
+        )
+        if hook.exists():
+            existing = hook.read_text()
+            if _POST_COMMIT_MARKER in existing:
+                return True  # idempotent
+            sep = "" if existing.endswith("\n") else "\n"
+            hook.write_text(existing + sep + line)
+        else:
+            hook.write_text("#!/bin/sh\n" + line)
+        hook.chmod(0o755)
+        return True
+    except Exception:  # noqa: BLE001 — hook install is best-effort; never crash session start
+        return False
+
+
 def launch_watcher(cwd: str) -> int | None:
     """Spawn the detached watcher for ``cwd``; return its pid (or None).
 
-    No-ops (returns None) when ``should_launch`` is False. Otherwise removes any
-    stale stop-file, spawns ``python -m brain2.livingdocs.watch`` detached with the
-    watcher's env contract, records the pid, and returns it. Best-effort: any error
-    → None.
+    No-ops (returns None) when ``should_launch`` is False. Otherwise installs the
+    best-effort ``post-commit`` re-anchor hook, removes any stale stop-file, spawns
+    ``python -m brain2.livingdocs.watch`` detached with the watcher's env contract,
+    records the pid, and returns it. Best-effort: any error → None.
     """
     if not should_launch(cwd):
         return None
     try:
         root = _repo_root(cwd)
         stop_file, pid_file = paths_for(cwd)
+
+        # Instant re-anchor on commit (the strongest drift signal), best-effort.
+        install_post_commit_hook(root, sys.executable)
 
         # Clear a stale stop-file so the fresh watcher doesn't exit on tick 1.
         try:

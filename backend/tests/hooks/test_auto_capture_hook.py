@@ -161,6 +161,47 @@ def test_stop_hook_module_loads_and_imports_stop_watcher():
     assert callable(stop_mod.main)
 
 
+import subprocess
+
+
+def _tmp_git_repo(tmp_path) -> str:
+    subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
+    return str(tmp_path)
+
+
+def test_install_post_commit_hook_creates(tmp_path):
+    repo = _tmp_git_repo(tmp_path)
+    assert ac.install_post_commit_hook(repo, "/usr/bin/python3") is True
+    hook = Path(repo) / ".git" / "hooks" / "post-commit"
+    text = hook.read_text()
+    assert text.startswith("#!/bin/sh")
+    assert ac._POST_COMMIT_MARKER in text
+    assert "brain2.livingdocs.watch --once" in text
+    assert os.access(hook, os.X_OK)  # executable
+
+
+def test_install_post_commit_hook_idempotent(tmp_path):
+    repo = _tmp_git_repo(tmp_path)
+    ac.install_post_commit_hook(repo, "/usr/bin/python3")
+    ac.install_post_commit_hook(repo, "/usr/bin/python3")
+    text = (Path(repo) / ".git" / "hooks" / "post-commit").read_text()
+    assert text.count(ac._POST_COMMIT_MARKER) == 1  # not duplicated
+
+
+def test_install_post_commit_hook_appends_to_existing(tmp_path):
+    repo = _tmp_git_repo(tmp_path)
+    hook = Path(repo) / ".git" / "hooks" / "post-commit"
+    hook.write_text("#!/bin/sh\necho 'user hook'\n")
+    assert ac.install_post_commit_hook(repo, "/usr/bin/python3") is True
+    text = hook.read_text()
+    assert "echo 'user hook'" in text          # original preserved
+    assert ac._POST_COMMIT_MARKER in text       # ours appended
+
+
+def test_install_post_commit_hook_never_raises_non_repo():
+    assert ac.install_post_commit_hook("/definitely/not/a/git/repo/xyz", "/usr/bin/python3") is False
+
+
 def _cleanup():
     stop_file, pid_file = ac.paths_for(_REPO_ROOT)
     for p in (stop_file, pid_file):
