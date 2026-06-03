@@ -205,10 +205,23 @@ async def run_distill(ctx: TenantContext, *, project_path: str, kb: str) -> dict
         store = get_store(ctx.access_token, org_id=ctx.org_id)
         listed = store.list_findings(ctx.kb_id, category="note")
         findings = listed.get("findings", []) if isinstance(listed, dict) else []
-        notes = [
-            {"title": f.get("title", ""), "content": f.get("content", "")}
-            for f in findings
-        ]
+        # list_findings is a LIST VIEW that omits `content`; fetch each note's full
+        # record so the curated doc body isn't empty. Best-effort per note: a single
+        # get_finding failure skips that note rather than aborting the whole distill.
+        notes = []
+        for f in findings:
+            fid = f.get("id")
+            if not fid:
+                continue
+            try:
+                full = store.get_finding(ctx.kb_id, fid)
+            except Exception:  # noqa: BLE001 — skip a single unreadable note
+                logger.warning("living-docs distill: skipped note %s (get_finding failed)", fid)
+                continue
+            notes.append({
+                "title": full.get("title", f.get("title", "")),
+                "content": full.get("content", ""),
+            })
 
         schema = _schema_folders(store, ctx.kb_id)
         topics = await _infer_topics(notes)
