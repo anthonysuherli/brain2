@@ -11,7 +11,8 @@
     "./skills/search",
     "./skills/explore",
     "./skills/activity",
-    "./skills/schema"
+    "./skills/schema",
+    "./skills/notes"
   ],
   "hooks": "./hooks/hooks.json"
 }
