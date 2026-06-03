@@ -5,9 +5,9 @@
 > founder-protection doc set are committed — see [LEGAL.md](LEGAL.md) for the
 > full index. Both operational risks are now cleared: git history was **audited
 > clean** of secrets (no `filter-repo` rewrite needed), Supabase schema
-> ownership is documented in [supabase/README.md](supabase/README.md), and the
+> ownership is documented in [supabase/README.md](../supabase/README.md), and the
 > third-party inventory is generated at
-> [LICENSES/THIRD-PARTY.md](LICENSES/THIRD-PARTY.md).
+> [LICENSES/THIRD-PARTY.md](../LICENSES/THIRD-PARTY.md).
 
 ## TL;DR
 
@@ -68,7 +68,7 @@ npx license-checker --summary         # if Node
       `.env` ever committed, zero hits for the shared Supabase project ref, no
       real key/token blobs in any commit. No `git filter-repo` rewrite needed.
 - [x] **Untangle the shared Supabase schema from Delapan** — documented in
-      [supabase/README.md](supabase/README.md): brain2 owns its copy under MIT
+      [supabase/README.md](../supabase/README.md): brain2 owns its copy under MIT
       (author re-licensing own work), synced manually, no cross-repo dep.
 - [x] Create `LICENSE` from the MIT template with the copyright line above.
 - [x] Add `LICENSES/THIRD-PARTY.md` — dependency inventory (102 deps, all
@@ -83,7 +83,7 @@ npx license-checker --summary         # if Node
 ```markdown
 ## License
 
-brain2 is open source under the [MIT License](LICENSE) — use it for anything,
+brain2 is open source under the [MIT License](../LICENSE) — use it for anything,
 including commercially, as long as the copyright notice is preserved.
 
 "brain2" is a name used by Anthony Suherli; the license covers the code, not the name.

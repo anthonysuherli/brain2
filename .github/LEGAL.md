@@ -4,7 +4,7 @@
 > brain2 and its maintainer. brain2 ships under the **MIT License**; this page
 > is the map to the documents that surround it.
 >
-> **Copyright (c) 2026 Anthony Suherli** — see [NOTICE](NOTICE).
+> **Copyright (c) 2026 Anthony Suherli** — see [NOTICE](../NOTICE).
 >
 > *Disclaimer: these are standard open-source governance documents, not legal
 > advice. Have counsel review the privacy and trademark documents before
@@ -14,8 +14,8 @@
 
 | Document | Purpose | Protects the founder by… |
 |---|---|---|
-| [LICENSE](LICENSE) | The MIT License — the actual grant. | The **"AS IS" / no-warranty / no-liability** clause. This is the single most important shield: it caps your legal exposure for a free tool. |
-| [NOTICE](NOTICE) | Copyright, trademark carve-out, Delapan relationship, third-party pointer. | Asserts ownership and states clearly that the name and the Delapan engine are *not* part of the MIT grant. |
+| [LICENSE](../LICENSE) | The MIT License — the actual grant. | The **"AS IS" / no-warranty / no-liability** clause. This is the single most important shield: it caps your legal exposure for a free tool. |
+| [NOTICE](../NOTICE) | Copyright, trademark carve-out, Delapan relationship, third-party pointer. | Asserts ownership and states clearly that the name and the Delapan engine are *not* part of the MIT grant. |
 | [LICENSING.md](LICENSING.md) | Decision record: *why* MIT, alternatives weighed, apply-it checklist. | Documents intent and the brain2-vs-Delapan license split, so the choice is defensible and repeatable. |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute + the **inbound = outbound** rule. | Every PR is licensed to you under MIT; no contributor can later claim their code wasn't licensed. |
 | [DCO](DCO) | Developer Certificate of Origin 1.1. | Each contributor certifies (via `git commit -s`) they have the right to submit their code — your IP-provenance backstop, lighter than a CLA. |
@@ -46,12 +46,12 @@ Status after the cleanup pass:
   `"fake-key"` test value, and `fly secrets set …=…` doc placeholders. No
   `git filter-repo` rewrite was required. *(Re-audit if a real key is ever
   committed and pushed.)*
-- [x] **Supabase schema ownership documented.** [supabase/README.md](supabase/README.md)
+- [x] **Supabase schema ownership documented.** [supabase/README.md](../supabase/README.md)
   declares brain2's copy MIT (the author re-licensing their own work), kept in
   sync manually like the rest of the engine fork — no shared file with two
   licenses, no cross-repo dependency.
 - [x] **Third-party license inventory generated** →
-  [LICENSES/THIRD-PARTY.md](LICENSES/THIRD-PARTY.md). 102 deps, all permissive
+  [LICENSES/THIRD-PARTY.md](../LICENSES/THIRD-PARTY.md). 102 deps, all permissive
   (MIT/BSD/Apache + 3 file-level MPL-2.0), **no GPL/AGPL/LGPL** — compatible with
   MIT distribution. brain2's own package now declares `license = "MIT"` in
   `backend/pyproject.toml`.

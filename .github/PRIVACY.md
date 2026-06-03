@@ -6,7 +6,7 @@
 
 This is a plain-language statement of how the brain2 software handles data. It
 is not a contract. The software is provided "AS IS" under the [MIT
-License](LICENSE), without warranty.
+License](../LICENSE), without warranty.
 
 ## What brain2 captures
 

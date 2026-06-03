@@ -23,7 +23,7 @@ Please include:
 - Credit in the release notes if you'd like it (or anonymity if you prefer).
 
 This is a solo-maintained open-source project provided "AS IS" with no warranty
-(see [LICENSE](LICENSE)). There is no paid bug bounty and no contractual SLA;
+(see [LICENSE](../LICENSE)). There is no paid bug bounty and no contractual SLA;
 the timelines above are best-effort.
 
 ## Coordinated disclosure

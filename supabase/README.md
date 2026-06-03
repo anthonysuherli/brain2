@@ -11,7 +11,7 @@ The author (Anthony Suherli) owns both brain2 and Delapan and re-licenses this
 copy under MIT here. Delapan keeps its own copy under its own
 (source-available / BUSL) license. The two are **separate copies**, not a shared
 file with two licenses — which resolves the "a migration can't be MIT here and
-BUSL there" ambiguity noted in [../LICENSING.md](../LICENSING.md).
+BUSL there" ambiguity noted in [../.github/LICENSING.md](../.github/LICENSING.md).
 
 ## Syncing
 

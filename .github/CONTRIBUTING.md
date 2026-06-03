@@ -6,7 +6,7 @@ protect both you and the maintainer.
 
 ## License of contributions (inbound = outbound)
 
-brain2 is licensed under the [MIT License](LICENSE). **By submitting a
+brain2 is licensed under the [MIT License](../LICENSE). **By submitting a
 contribution (a pull request, patch, or any code/docs/content) you agree that
 your contribution is licensed to the project and to everyone who receives the
 project under the same MIT License.** This is the "inbound = outbound" rule:
