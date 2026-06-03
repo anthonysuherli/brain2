@@ -287,9 +287,31 @@ def test_live_diff_files_empty(tmp_path):
 
 def test_live_diff_files_dirty(tmp_path):
     repo = _make_repo(tmp_path)
-    (repo / "foo.py").write_text("x = 1")
+    # Modify a TRACKED file — README.md was committed by _make_repo.
+    (repo / "README.md").write_text("changed")
     result = sl.live_diff_files(str(repo))
-    assert "foo.py" in result
+    assert "README.md" in result
+
+
+def test_live_diff_files_ignores_untracked(tmp_path):
+    """Regression: untracked files must NOT count as drift. The capture's diff-stat
+    only records tracked changes, so counting untracked files here makes the statusline
+    permanently 'drifted' in any repo that has them."""
+    repo = _make_repo(tmp_path)
+    (repo / "brand_new.py").write_text("x = 1")  # untracked
+    result = sl.live_diff_files(str(repo))
+    assert "brand_new.py" not in result
+    assert result == set()
+
+
+def test_live_diff_files_counts_staged(tmp_path):
+    """Staged tracked changes still count (diff vs HEAD), so staging mid-session
+    doesn't falsely flip the line to drifted."""
+    repo = _make_repo(tmp_path)
+    (repo / "README.md").write_text("changed")
+    subprocess.run(["git", "-C", str(repo), "add", "README.md"], check=True, capture_output=True)
+    result = sl.live_diff_files(str(repo))
+    assert "README.md" in result
 
 
 def test_commits_since_capture_zero(tmp_path):

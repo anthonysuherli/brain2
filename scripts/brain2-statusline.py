@@ -192,20 +192,19 @@ def git(cwd: str, *args: str) -> str:
         return ""
 
 
-_STATUS_PATH_RE = re.compile(r"^.{2} (.+)$")  # " XY path" from git status --short
-
-
 def live_diff_files(cwd: str) -> set:
-    """Return the set of files currently dirty (modified, staged, or untracked)."""
-    raw = git(cwd, "status", "--short")
+    """Return the set of tracked files changed vs HEAD (staged + unstaged).
+
+    This mirrors the scope of the capture's ``**Git diff stat**`` block (produced by
+    ``git diff``), so drift compares like-with-like. Untracked files are intentionally
+    excluded: a captured snapshot never records them, so including them here would make
+    the symmetric-difference perpetually non-empty — the statusline would be stuck at
+    'drifted' in any repo that has untracked files.
+    """
+    raw = git(cwd, "diff", "HEAD", "--name-only")
     if not raw:
         return set()
-    paths = set()
-    for line in raw.splitlines():
-        m = _STATUS_PATH_RE.match(line)
-        if m:
-            paths.add(m.group(1).strip())
-    return paths
+    return {line.strip() for line in raw.splitlines() if line.strip()}
 
 
 def commits_since_capture(cwd: str, captured_at: str) -> int:
