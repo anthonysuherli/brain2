@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY, org_id TEXT NOT NULL, name TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS kbs (
   id TEXT PRIMARY KEY, org_id TEXT NOT NULL, project_id TEXT NOT NULL, name TEXT NOT NULL,
-  created_at TEXT NOT NULL, init_offered_at TEXT);
+  created_at TEXT NOT NULL, init_offered_at TEXT, drift_offered_count INTEGER);
 CREATE TABLE IF NOT EXISTS findings (
   id TEXT PRIMARY KEY, org_id TEXT NOT NULL, kb_id TEXT NOT NULL,
   title TEXT, content TEXT, category TEXT, confidence REAL,
@@ -91,6 +91,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_kg_schemas_kb_version ON kg_schemas(kb_id,
 _ADD_COLUMN_MIGRATIONS: list[str] = [
     # 0007: offer-once stamp (added when kbs table already exists in older DBs)
     "ALTER TABLE kbs ADD COLUMN init_offered_at TEXT;",
+    # 0008: schema-drift offer debounce — residual count stamped at last drift offer
+    "ALTER TABLE kbs ADD COLUMN drift_offered_count INTEGER;",
 ]
 
 # Cap on how many grounding finding ids a long-lived node (a repo touched for
@@ -871,6 +873,36 @@ class SQLiteStore:
             self._conn.execute(
                 "UPDATE kbs SET init_offered_at = ? WHERE id = ?;",
                 (_now_iso(), kb_id),
+            )
+            self._conn.commit()
+        except Exception:  # noqa: BLE001 — column may not exist yet
+            pass
+
+    # --- schema-drift offer debounce -----------------------------------------
+
+    def get_drift_marker(self, kb_id: str) -> int:
+        """Residual node count stamped at the last drift offer for `kb_id` (0 if never).
+
+        Powers the re-arm gate in ``drift.assess_drift`` — a declined drift offer
+        only re-surfaces once residual grows past this baseline. Best-effort: 0 when
+        the column is absent (pre-migration 0008)."""
+        try:
+            r = self._conn.execute(
+                "SELECT drift_offered_count FROM kbs WHERE id = ? LIMIT 1;", (kb_id,)
+            ).fetchone()
+            return int(r["drift_offered_count"]) if r and r["drift_offered_count"] is not None else 0
+        except Exception:  # noqa: BLE001 — column absent on old DB
+            return 0
+
+    def set_drift_marker(self, kb_id: str, count: int) -> None:
+        """Stamp the residual count at which a drift offer was surfaced for `kb_id`.
+
+        Called once per offer (by ``brain2_mark_drift_offered``) so the next session
+        doesn't re-nag until drift intensifies. No-op if the column is absent."""
+        try:
+            self._conn.execute(
+                "UPDATE kbs SET drift_offered_count = ? WHERE id = ?;",
+                (int(count), kb_id),
             )
             self._conn.commit()
         except Exception:  # noqa: BLE001 — column may not exist yet

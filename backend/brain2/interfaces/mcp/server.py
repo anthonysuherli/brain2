@@ -17,6 +17,8 @@ Add to .claude/settings.json:
 
 from __future__ import annotations
 
+import os
+
 from mcp.server.fastmcp import FastMCP
 
 from brain2.agent.preamble import select_preamble
@@ -28,6 +30,7 @@ from brain2.interfaces.mcp.banner import BRAIN2_BANNER
 from brain2.interfaces.mcp.tenancy import resolve_store, resolve_tenant
 from brain2.knowledge_graph.activity import query_activity, schedule_activity_update
 from brain2.knowledge_graph.builder import build_graph
+from brain2.knowledge_graph.drift import assess_drift
 from brain2.knowledge_graph.models import KGSchema
 from brain2.knowledge_graph.schema import propose_schema, validate_schema
 from brain2.monitoring.recorder import PREAMBLE_TARGETS
@@ -279,6 +282,61 @@ async def brain2_get_kg_schema(project: str, kb: str) -> dict:
     intent = store.get_kg_intent(ctx.kb_id)
     emergent = store.kg_stats(ctx.kb_id)
     return {"intent": intent, "emergent": emergent}
+
+
+@mcp.tool()
+async def brain2_schema_drift(project: str, kb: str) -> dict:
+    """Should brain2 offer to (re)design this KB's KG schema right now?
+
+    The trigger behind the self-maintaining loop. Reads the built graph's type
+    distribution against the KB's approved intent schema (no extra LLM call) and
+    returns a verdict:
+      - ``mode``: ``"cold_start"`` (no schema yet, enough collected to propose one),
+        ``"drift"`` (a schema is set but residual / off-ontology nodes crossed the
+        threshold), ``"ok"`` (the graph fits), or ``"empty"`` (too small to judge).
+      - ``should_offer``: whether to surface the offer NOW — debounced so a declined
+        offer doesn't re-nag every session.
+      - ``offer_line``: the ready-to-show, one-line turn-boundary offer (null unless
+        ``should_offer``).
+      - ``residual`` / ``ratio`` / ``residual_types``: the off-ontology cluster — the
+        seed the ``/brain2:schema`` wizard reshapes around.
+
+    Gated by ``BRAIN2_SCHEMA_DRIFT`` (default on); returns ``mode="off"`` when
+    disabled. Best-effort — never raises; an unbuilt graph reads as ``"empty"``."""
+    if os.getenv("BRAIN2_SCHEMA_DRIFT", "1") == "0":
+        return {"mode": "off", "should_offer": False, "offer_line": None, "project": project, "kb": kb}
+    try:
+        ctx = resolve_tenant(project, kb, create=False)
+    except Exception:  # noqa: BLE001 — unknown KB: nothing to judge, stay quiet
+        return {"mode": "empty", "should_offer": False, "offer_line": None, "project": project, "kb": kb}
+    store = get_store(ctx.access_token, org_id=ctx.org_id)
+    cfg = get_config().drift
+    verdict = assess_drift(
+        store,
+        ctx.kb_id,
+        cfg,
+        init_offered=store.get_init_offered(ctx.kb_id),
+        drift_marker=store.get_drift_marker(ctx.kb_id),
+    )
+    return {**verdict.to_dict(), "project": project, "kb": kb}
+
+
+@mcp.tool()
+async def brain2_mark_drift_offered(project: str, kb: str, residual: int) -> dict:
+    """Stamp that a schema-drift offer was surfaced for the KB, at ``residual`` count.
+
+    Call once right after surfacing the drift ``offer_line`` (whether or not the
+    user accepts). Debounces re-offers: the next drift offer only re-surfaces once
+    residual grows by the configured ``rearm_delta`` beyond this stamp — so a steady
+    "no" stays quiet. Best-effort; never raises. Returns
+    ``{marked, project, kb, residual}``."""
+    try:
+        ctx = resolve_tenant(project, kb, create=False)
+        store = get_store(ctx.access_token, org_id=ctx.org_id)
+        store.set_drift_marker(ctx.kb_id, int(residual))
+        return {"marked": True, "project": project, "kb": kb, "residual": int(residual)}
+    except Exception:  # noqa: BLE001 — best-effort stamp; never fail the session
+        return {"marked": False, "project": project, "kb": kb, "residual": residual}
 
 
 @mcp.tool()

@@ -650,6 +650,41 @@ class SupabaseStore:
         except Exception:  # noqa: BLE001 — best-effort, never raise
             pass
 
+    # --- schema-drift offer debounce -----------------------------------------
+
+    def get_drift_marker(self, kb_id: str) -> int:
+        """Residual count stamped at the last drift offer for `kb_id` (0 if never).
+
+        Best-effort: 0 when the `drift_offered_count` column is absent (the shared
+        Supabase schema may not carry it yet) so cloud degrades to re-checking,
+        never crashing."""
+        try:
+            rows = (
+                service_client()
+                .table("kbs")
+                .select("drift_offered_count")
+                .eq("id", kb_id)
+                .limit(1)
+                .execute()
+            ).data or []
+            if rows and isinstance(rows[0], dict) and rows[0].get("drift_offered_count") is not None:
+                return int(rows[0]["drift_offered_count"])
+        except Exception:  # noqa: BLE001 — best-effort
+            pass
+        return 0
+
+    def set_drift_marker(self, kb_id: str, count: int) -> None:
+        """Stamp the residual count at which a drift offer was surfaced for `kb_id`.
+
+        Service client (ownership verified upstream by resolve_tenant). Silently
+        no-ops on error so a missing column never breaks the session."""
+        try:
+            service_client().table("kbs").update(
+                {"drift_offered_count": int(count)}
+            ).eq("id", kb_id).execute()
+        except Exception:  # noqa: BLE001 — best-effort, never raise
+            pass
+
     # --- monitoring — best-effort --------------------------------------------
 
     async def record_access(

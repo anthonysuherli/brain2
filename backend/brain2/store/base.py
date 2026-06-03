@@ -224,6 +224,24 @@ class Store(Protocol):
         No-op if the column is absent (local tier before migration 0007)."""
         ...
 
+    # --- schema-drift offer debounce -----------------------------------------
+    # The residual node count stamped at the last drift offer. Powers the re-arm
+    # gate in `drift.assess_drift`: a declined drift offer only re-surfaces once
+    # residual grows past this baseline by `rearm_delta`.
+
+    def get_drift_marker(self, kb_id: str) -> int:
+        """Residual count stamped at the last drift offer for `kb_id` (0 if never).
+
+        Best-effort: returns 0 when the backing column is absent."""
+        ...
+
+    def set_drift_marker(self, kb_id: str, count: int) -> None:
+        """Stamp the residual count at which a drift offer was surfaced for `kb_id`.
+
+        Called once per offer so the next session doesn't re-nag until drift
+        intensifies. No-op if the backing column is absent."""
+        ...
+
     # --- monitoring — best-effort --------------------------------------------
 
     async def record_access(

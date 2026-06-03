@@ -211,6 +211,32 @@ class KnowledgeGraphConfig(BaseModel):
     max_nodes: int = 500  # cap on nodes kept after extraction collapse
 
 
+class DriftConfig(BaseModel):
+    """Schema-drift detector — decides *when* to offer the KG-schema wizard.
+
+    Reads off the built graph's type distribution (``kg_stats().by_type``) against
+    the KB's approved intent schema. A node is a **residual** when its type is
+    ``"other"`` or (a schema is set and) its type isn't one the schema declares —
+    i.e. the extractor kept signal the ontology couldn't place. Two fire modes:
+
+    - **cold_start** — no schema set yet and the graph has crossed ``cold_start_min_nodes``
+      ("enough collected to propose a first schema").
+    - **drift** — a schema is set and the residual ratio over the graph crossed
+      ``drift_ratio`` with at least ``drift_floor`` residual nodes ("reality moved
+      past the ontology").
+
+    Both are gated/debounced so a declined offer doesn't re-nag every session:
+    cold_start reuses the ``init_offered`` stamp; drift re-arms only once residual
+    grows by ``rearm_delta`` beyond the count stamped at the last offer.
+    """
+
+    min_nodes: int = 8           # below this the graph is too small to judge at all
+    cold_start_min_nodes: int = 12  # enough nodes (no schema) to propose a first ontology
+    drift_ratio: float = 0.30    # residual / total at/above which the ontology is "drifting"
+    drift_floor: int = 4         # absolute residual floor (a tiny graph can't trip drift)
+    rearm_delta: int = 6         # extra residual growth before a declined drift offer re-arms
+
+
 class PublicApiConfig(BaseModel):
     preamble_default_limit: int = 12
     preamble_max_limit: int = 40
@@ -243,6 +269,7 @@ class AppConfig(BaseModel):
     activity: ActivityConfig = Field(default_factory=ActivityConfig)
     concept: ConceptConfig = Field(default_factory=ConceptConfig)
     knowledge_graph: KnowledgeGraphConfig = Field(default_factory=KnowledgeGraphConfig)
+    drift: DriftConfig = Field(default_factory=DriftConfig)
     public_api: PublicApiConfig = Field(default_factory=PublicApiConfig)
     monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
 
