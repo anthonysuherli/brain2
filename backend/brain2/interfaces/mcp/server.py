@@ -33,6 +33,8 @@ from brain2.knowledge_graph.builder import build_graph
 from brain2.knowledge_graph.drift import assess_drift
 from brain2.knowledge_graph.models import KGSchema
 from brain2.knowledge_graph.schema import propose_schema, validate_schema
+from brain2.livingdocs.distill import schedule_distill
+from brain2.livingdocs.notes import persist_note
 from brain2.monitoring.recorder import PREAMBLE_TARGETS
 from brain2.store import get_store
 
@@ -76,6 +78,45 @@ async def brain2_capture(
     finding_id = await persist_snapshot(ctx, snap)
     schedule_activity_update(snap, finding_id)  # fire-and-forget; best-effort
     return {"finding_id": finding_id, "project": project, "kb": kb}
+
+
+async def _note_impl(
+    project, kb, project_path, content, session_id, title, captured_at="", source="agent"
+):
+    ctx = resolve_tenant(project, kb, create=True)
+    res = await persist_note(
+        ctx,
+        project_path=project_path,
+        kb=kb,
+        content=content,
+        session_id=session_id,
+        title=title,
+        captured_at=captured_at,
+        source=source,
+    )
+    schedule_distill(ctx, project_path=project_path, kb=kb)
+    return {**res, "project": project, "kb": kb}
+
+
+@mcp.tool()
+async def brain2_note(
+    project: str,
+    kb: str,
+    project_path: str,
+    content: str,
+    session_id: str,
+    title: str,
+    captured_at: str = "",
+    source: str = "agent",
+) -> dict:
+    """Persist a session note: a `note` Finding (searchable, feeds resume) AND a
+    markdown file under .brain2/notes/<kb>/. Then schedules a debounced re-distill of
+    the curated doc tree. Called by the Stop hook at session end. `content` should be
+    rendered per the KB's note policy (brain2_notes_policy_get). Returns
+    {finding_id, note_path, project, kb}."""
+    return await _note_impl(
+        project, kb, project_path, content, session_id, title, captured_at, source
+    )
 
 
 @mcp.tool()
