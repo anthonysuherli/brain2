@@ -49,6 +49,33 @@ GREEN, CYAN, YELLOW, GREY = "\033[32m", "\033[36m", "\033[33m", "\033[90m"
 
 _HYP_RE = re.compile(r"\*\*Hypothesis\*\*:\s*(.+)", re.IGNORECASE)
 
+_FRAC_RE = re.compile(r"^(.*\d{2}:\d{2}:\d{2})\.(\d+)(.*)$")
+
+
+def parse_iso(value) -> "datetime | None":
+    """Parse an ISO-8601 timestamp tolerant of variable fractional-second precision.
+
+    PostgREST trims trailing zeros from microseconds (``…04.882700`` → ``…04.8827``),
+    and Python 3.9's ``datetime.fromisoformat`` only accepts 3- or 6-digit fractions —
+    it raises on 1/2/4/5-digit fractions. The statusline runs under the system
+    interpreter (often 3.9), so a snapshot whose timestamp happens to trim to one of
+    those widths would make ``main()`` throw and collapse to NO_CAPTURE even though the
+    capture exists. Normalise the fraction to 6 digits, return an aware UTC datetime, or
+    None if unparseable (callers degrade gracefully on None).
+    """
+    if not value:
+        return None
+    s = str(value).strip().replace("Z", "+00:00")
+    m = _FRAC_RE.match(s)
+    if m:
+        frac = (m.group(2) + "000000")[:6]
+        s = f"{m.group(1)}.{frac}{m.group(3)}"
+    try:
+        dt = datetime.fromisoformat(s)
+    except Exception:
+        return None
+    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
+
 
 # ── diff-stat parsing ────────────────────────────────────────────────────────
 _DIFF_BLOCK_RE = re.compile(r"\*\*Git diff stat\*\*:\s*```[^\n]*\n(.*?)```", re.DOTALL)
@@ -212,21 +239,17 @@ def commits_since_capture(cwd: str, captured_at: str) -> int:
     raw = git(cwd, "log", "--format=%aI")
     if not raw:
         return 0
-    try:
-        dt_captured = datetime.fromisoformat(captured_at.replace("Z", "+00:00"))
-    except Exception:
+    dt_captured = parse_iso(captured_at)
+    if not dt_captured:
         return 0
     count = 0
     for line in raw.splitlines():
         line = line.strip()
         if not line:
             continue
-        try:
-            dt_commit = datetime.fromisoformat(line)
-            if dt_commit > dt_captured:
-                count += 1
-        except Exception:
-            pass
+        dt_commit = parse_iso(line)
+        if dt_commit and dt_commit > dt_captured:
+            count += 1
     return count
 
 
@@ -406,15 +429,10 @@ def _hyp(title, content):
 
 
 def age(created_at) -> str:
-    if not created_at:
+    dt = parse_iso(created_at)
+    if not dt:
         return ""
-    try:
-        dt = datetime.fromisoformat(str(created_at).replace("Z", "+00:00"))
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        secs = max(0, (datetime.now(timezone.utc) - dt).total_seconds())
-    except Exception:
-        return ""
+    secs = max(0, (datetime.now(timezone.utc) - dt).total_seconds())
     if secs < 3600:
         return f"{int(secs // 60)}m"
     if secs < 86400:
@@ -581,10 +599,8 @@ def main() -> None:
     try:
         branch_map = fetch(cur_project)
         text, created_at = branch_map.get(cur_branch, (None, None))
-        if created_at:
-            dt = datetime.fromisoformat(str(created_at).replace("Z", "+00:00"))
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+        dt = parse_iso(created_at)
+        if dt:
             age_secs = max(0.0, (datetime.now(timezone.utc) - dt).total_seconds())
         if text is not None or created_at is not None:
             snapshot = {"hyp": text, "created_at": created_at}

@@ -59,6 +59,44 @@ def test_parse_diff_stat_plus_n_more():
     assert "... and 3 more" not in result
 
 
+# ── parse_iso (Py3.9 fractional-second tolerance) ──────────────────────────
+
+def test_parse_iso_four_digit_microseconds():
+    """Regression for the cloud-tier 'no capture yet' bug: PostgREST trims trailing
+    zeros (.882700 -> .8827, 4 digits) and Py3.9's fromisoformat rejects that width.
+    parse_iso must parse it so main() doesn't throw and collapse to NO_CAPTURE."""
+    dt = sl.parse_iso("2026-06-03T18:37:04.8827+00:00")
+    assert dt is not None
+    assert (dt.year, dt.month, dt.day, dt.second) == (2026, 6, 3, 4)
+    assert dt.tzinfo is not None
+
+
+def test_parse_iso_odd_fraction_widths():
+    # 1, 2, 4, 5 digit fractions all blow up bare fromisoformat on 3.9
+    for ts in ("2026-06-03T18:37:04.8+00:00",
+               "2026-06-03T18:37:04.88+00:00",
+               "2026-06-03T18:37:04.8827+00:00",
+               "2026-06-03T18:37:04.88270+00:00"):
+        assert sl.parse_iso(ts) is not None, ts
+
+
+def test_parse_iso_six_digit_and_no_fraction():
+    assert sl.parse_iso("2026-06-03T18:13:09.610656+00:00") is not None
+    assert sl.parse_iso("2026-06-03T11:13:09-07:00") is not None
+
+
+def test_parse_iso_zulu_and_naive():
+    assert sl.parse_iso("2026-06-03T18:37:04Z") is not None
+    naive = sl.parse_iso("2026-06-03T18:37:04.8827")
+    assert naive is not None and naive.tzinfo is not None  # assumed UTC
+
+
+def test_parse_iso_empty_and_garbage():
+    assert sl.parse_iso(None) is None
+    assert sl.parse_iso("") is None
+    assert sl.parse_iso("not a date") is None
+
+
 # ── compute_drift ──────────────────────────────────────────────────────────
 
 def test_compute_drift_identical():
