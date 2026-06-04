@@ -30,6 +30,7 @@ from brain2.interfaces.mcp.tenancy import (
     _login,
     _org_for,
 )
+from brain2.constants import JOURNAL_SCOPE
 from brain2.monitoring.recorder import record_access as _record_access
 
 # Column lists copied from findings/service.py — keep in lockstep.
@@ -265,7 +266,8 @@ class SupabaseStore:
         org_id = self._resolve_org()
         sb = service_client()
         prows = (
-            sb.table("projects").select("id, name").eq("org_id", org_id)
+            sb.table("projects").select("id, name")
+            .eq("org_id", org_id).neq("name", JOURNAL_SCOPE)
             .order("created_at").execute()
         ).data or []
         projects: list[dict] = []

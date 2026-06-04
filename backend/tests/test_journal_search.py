@@ -75,3 +75,22 @@ async def test_journal_search_project_scope_unknown_returns_empty(tmp_path, monk
     res = await server._journal_search_impl("anything", scope="project", project="nope", kb="nope")
     assert res == {"results": [], "scope": "project", "count": 0}
     store_pkg._local_stores.clear()
+
+
+async def test_list_projects_hides_journal_scope(tmp_path, monkeypatch):
+    monkeypatch.setenv("BRAIN2_BACKEND", "local")
+    monkeypatch.setenv("BRAIN2_DB_PATH", str(tmp_path / "brain.db"))
+
+    import brain2.store as store_pkg
+    from brain2.constants import JOURNAL_SCOPE
+    from brain2.interfaces.mcp.tenancy import resolve_tenant
+
+    store_pkg._local_stores.clear()
+    resolve_tenant(JOURNAL_SCOPE, JOURNAL_SCOPE, create=True)
+    resolve_tenant("realproj", "main", create=True)
+
+    names = {p["project"] for p in store_pkg.get_store().list_projects()}
+    assert "realproj" in names
+    assert JOURNAL_SCOPE not in names
+
+    store_pkg._local_stores.clear()

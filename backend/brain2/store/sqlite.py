@@ -41,6 +41,8 @@ from sqlite_vec import serialize_float32
 # Synthetic single-tenant org for the local tier.
 _ORG = "local"
 
+from brain2.constants import JOURNAL_SCOPE
+
 # Column lists kept in lockstep with findings/service.py + the match RPC.
 _FINDING_COLS = ("id", "title", "content", "category", "confidence", "tags", "provenance", "created_at")
 _FINDING_LIST_COLS = ("id", "title", "category", "confidence", "tags", "created_at")
@@ -469,7 +471,8 @@ class SQLiteStore:
         """All local projects + KBs with snapshot last-activity/count (newest KB rows last)."""
         projects: list[dict] = []
         prows = self._conn.execute(
-            "SELECT id, name FROM projects WHERE org_id = ? ORDER BY created_at;", (_ORG,)
+            "SELECT id, name FROM projects WHERE org_id = ? AND name != ? ORDER BY created_at;",
+            (_ORG, JOURNAL_SCOPE),
         ).fetchall()
         for p in prows:
             kbs: list[dict] = []
