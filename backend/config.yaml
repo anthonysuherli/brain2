@@ -23,11 +23,18 @@ tiers:
   preamble_char_budget: 5000  # resume card is tighter than a full chat preamble
 
 exploration:
-  planner_model: "mistral/mistral-large-latest"
-  extraction_model: "mistral/mistral-large-latest"
-  extraction_fallback_model: "mistral/mistral-small-latest"
-  evaluation_model: "mistral/mistral-large-latest"
+  # Vercel AI Gateway slugs — the gateway has no `-latest` alias, so the old
+  # `mistral/mistral-large-latest` 404s (model_not_found). Mirrors the dlapan
+  # engine's proven cost/quality split: cheap flash on every-explore steps,
+  # frontier (1M-ctx) only on the quality-critical extraction step.
+  planner_model: "google/gemini-3.5-flash"
+  extraction_model: "google/gemini-3.1-pro-preview"
+  extraction_fallback_model: "google/gemini-3.5-flash"
+  evaluation_model: "google/gemini-3.5-flash"
+  # persistence cap — findings kept per explore when the caller passes none.
+  # Ceiling stays at the code default (max_findings: 40); 25 fits under it.
+  default_max_findings: 25
 
 activity:
-  task_model: "mistral/mistral-small-latest"
-  task_fallback_model: "mistral/mistral-small-latest"
+  task_model: "google/gemini-3.5-flash"
+  task_fallback_model: "google/gemini-3.5-flash"
