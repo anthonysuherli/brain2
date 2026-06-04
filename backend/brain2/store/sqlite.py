@@ -169,28 +169,43 @@ class SQLiteStore:
 
     async def match_findings(
         self,
-        kb_id: str,
+        kb_id: str | None,
         query_embedding: list[float],
         match_count: int,
         min_similarity: float,
+        categories: list[str] | None = None,
     ) -> list[dict]:
         """Cosine KNN over vec_findings joined to findings; rows carry `similarity`.
 
-        Mirrors the Postgres ``match_findings`` RPC: returns ``id, title,
-        content, category, confidence, tags, provenance, similarity`` ordered by
-        descending similarity (= 1 - cosine distance), dropping rows below
-        ``min_similarity``. JSON columns are decoded."""
+        `kb_id=None` searches every KB in the local org; `categories` filters by
+        `category`. Mirrors the Postgres ``match_findings`` RPC return shape:
+        ``id, title, content, category, confidence, tags, provenance, similarity``
+        ordered by descending similarity (= 1 - cosine distance), dropping rows
+        below ``min_similarity``. JSON columns are decoded."""
         q = serialize_float32(query_embedding)
         select_cols = ", ".join(f"f.{c}" for c in _FINDING_MATCH_COLS)
+        where: list[str] = []
+        params: list[object] = [q]
+        if kb_id is not None:
+            where.append("f.kb_id = ?")
+            params.append(kb_id)
+        else:
+            where.append("f.org_id = ?")
+            params.append(_ORG)
+        if categories:
+            placeholders = ",".join("?" for _ in categories)
+            where.append(f"f.category IN ({placeholders})")
+            params.extend(categories)
+        params.append(match_count)
         rows = self._conn.execute(
             f"""
             SELECT {select_cols},
                    vec_distance_cosine(v.embedding, ?) AS dist
             FROM vec_findings v JOIN findings f ON f.id = v.finding_id
-            WHERE f.kb_id = ?
+            WHERE {' AND '.join(where)}
             ORDER BY dist LIMIT ?;
             """,
-            (q, kb_id, match_count),
+            params,
         ).fetchall()
         out: list[dict] = []
         for r in rows:

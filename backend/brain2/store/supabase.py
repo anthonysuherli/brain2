@@ -71,24 +71,30 @@ class SupabaseStore:
 
     async def match_findings(
         self,
-        kb_id: str,
+        kb_id: str | None,
         query_embedding: list[float],
         match_count: int,
         min_similarity: float,
+        categories: list[str] | None = None,
     ) -> list[dict]:
         """Mirrors agent/preamble.py select_preamble — the match_findings RPC.
 
         Runs against the service client (the preamble path already uses a service
-        client for this read). Rows carry a `similarity` field."""
-        res = service_client().rpc(
-            "match_findings",
-            {
-                "query_embedding": query_embedding,
-                "match_kb_id": kb_id,
-                "match_count": match_count,
-                "min_similarity": min_similarity,
-            },
-        ).execute()
+        client for this read). `kb_id=None` searches the whole org via the
+        explicit ``match_org_id`` filter (the tenancy invariant — never run
+        org-wide without it); `categories` narrows by category. Rows carry a
+        `similarity` field."""
+        args: dict = {
+            "query_embedding": query_embedding,
+            "match_kb_id": kb_id,
+            "match_count": match_count,
+            "min_similarity": min_similarity,
+        }
+        if kb_id is None:
+            args["match_org_id"] = self._resolve_org()
+        if categories:
+            args["match_categories"] = list(categories)
+        res = service_client().rpc("match_findings", args).execute()
         return res.data or []
 
     async def insert_findings(self, rows: list[dict]) -> list[str]:

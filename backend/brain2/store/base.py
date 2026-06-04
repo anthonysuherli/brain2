@@ -24,12 +24,19 @@ class Store(Protocol):
 
     async def match_findings(
         self,
-        kb_id: str,
+        kb_id: str | None,
         query_embedding: list[float],
         match_count: int,
         min_similarity: float,
+        categories: list[str] | None = None,
     ) -> list[dict]:
-        """Vector-search findings in `kb_id`. Rows carry a `similarity` field."""
+        """Vector-search findings; rows carry a `similarity` field.
+
+        `kb_id` scopes to one KB; `kb_id=None` searches every KB in the store's
+        org (the load-bearing org filter — SQLite's synthetic ``"local"`` or the
+        SupabaseStore's injected ``org_id``). `categories`, when given, restricts
+        results to those `category` values.
+        """
         ...
 
     async def insert_findings(self, rows: list[dict]) -> list[str]:
