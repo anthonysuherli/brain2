@@ -61,3 +61,17 @@ async def test_journal_search_scopes(tmp_path, monkeypatch):
     assert none["results"] == []
 
     store_pkg._local_stores.clear()
+
+
+async def test_journal_search_project_scope_unknown_returns_empty(tmp_path, monkeypatch):
+    monkeypatch.setenv("BRAIN2_BACKEND", "local")
+    monkeypatch.setenv("BRAIN2_DB_PATH", str(tmp_path / "brain.db"))
+    monkeypatch.setattr("brain2.clients.embeddings.embed_text", _fake_embed_text)
+
+    import brain2.store as store_pkg
+    from brain2.interfaces.mcp import server
+
+    store_pkg._local_stores.clear()
+    res = await server._journal_search_impl("anything", scope="project", project="nope", kb="nope")
+    assert res == {"results": [], "scope": "project", "count": 0}
+    store_pkg._local_stores.clear()

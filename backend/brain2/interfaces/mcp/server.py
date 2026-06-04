@@ -222,7 +222,12 @@ async def _journal_search_impl(
         store = get_store(ctx.access_token, org_id=ctx.org_id)
         rows = await store.match_findings(ctx.kb_id, emb, limit, min_sim, categories=["journal"])
     elif scope == "project":
-        ctx = resolve_tenant(project, kb, create=False)
+        try:
+            ctx = resolve_tenant(project, kb, create=False)
+        except RuntimeError as exc:  # unknown project/kb — a search miss, not an error
+            if "not found" in str(exc).lower():
+                return {"results": [], "scope": scope, "count": 0}
+            raise
         store = get_store(ctx.access_token, org_id=ctx.org_id)
         rows = await store.match_findings(ctx.kb_id, emb, limit, min_sim, categories=["note"])
     else:  # "both" — org-wide across the journal + every KB's notes
