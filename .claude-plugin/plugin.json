@@ -13,7 +13,8 @@
     "./skills/activity",
     "./skills/schema",
     "./skills/notes",
-    "./skills/docs"
+    "./skills/docs",
+    "./skills/journal"
   ],
   "hooks": "./hooks/hooks.json"
 }
