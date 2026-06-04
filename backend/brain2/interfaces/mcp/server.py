@@ -210,6 +210,77 @@ async def brain2_journal(
     return await _journal_impl(text, type, tags, title, project, project_path, session_id)
 
 
+async def _journal_search_impl(
+    query, scope="both", type=None, limit=10, project="", kb="", project_path=""
+):
+    from brain2.clients.embeddings import embed_text
+
+    emb = await embed_text(query)
+    min_sim = 0.0
+    if scope == "journal":
+        ctx = resolve_tenant(JOURNAL_SCOPE, JOURNAL_SCOPE, create=True)
+        store = get_store(ctx.access_token, org_id=ctx.org_id)
+        rows = await store.match_findings(ctx.kb_id, emb, limit, min_sim, categories=["journal"])
+    elif scope == "project":
+        ctx = resolve_tenant(project, kb, create=False)
+        store = get_store(ctx.access_token, org_id=ctx.org_id)
+        rows = await store.match_findings(ctx.kb_id, emb, limit, min_sim, categories=["note"])
+    else:  # "both" — org-wide across the journal + every KB's notes
+        store = resolve_store()
+        rows = await store.match_findings(None, emb, limit, min_sim, categories=["journal", "note"])
+
+    results: list[dict] = []
+    for r in rows:
+        tags = r.get("tags") or []
+        if type and type not in tags:
+            continue
+        results.append(
+            {
+                "id": r.get("id"),
+                "title": r.get("title"),
+                "snippet": (r.get("content") or "")[:240],
+                "score": round(float(r.get("similarity") or 0.0), 4),
+                "category": r.get("category"),
+                "tags": tags,
+            }
+        )
+    return {"results": results, "scope": scope, "count": len(results)}
+
+
+@mcp.tool()
+async def brain2_journal_search(
+    query: str,
+    scope: str = "both",
+    type: str | None = None,
+    limit: int = 10,
+    project: str = "",
+    kb: str = "",
+    project_path: str = "",
+) -> dict:
+    """Search your journal (and optionally your project notes) by meaning.
+
+    `scope` selects the corpus: ``journal`` (your cross-project entries only),
+    ``project`` (this repo+branch's session notes only — pass project/kb), or
+    ``both`` (default — journal entries + every project's notes in one ranked
+    list). `type` further filters journal results by label (insight/reflection/
+    …). Returns {results: [{title, snippet, score, category, tags, id}], scope,
+    count}, ranked by similarity."""
+    return await _journal_search_impl(query, scope, type, limit, project, kb, project_path)
+
+
+@mcp.tool()
+async def brain2_journal_recent(limit: int = 10) -> dict:
+    """List your most recent journal entries, newest first (no query).
+
+    Returns {entries: [{id, title, category, confidence, tags, created_at}],
+    count}. Use to skim what you've journaled lately; use brain2_journal_search
+    to find by meaning."""
+    ctx = resolve_tenant(JOURNAL_SCOPE, JOURNAL_SCOPE, create=True)
+    store = get_store(ctx.access_token, org_id=ctx.org_id)
+    res = store.list_findings(ctx.kb_id, category="journal", limit=limit)
+    return {"entries": res.get("findings", []), "count": res.get("count", 0)}
+
+
 @mcp.tool()
 async def brain2_resume(
     project: str, kb: str, query: str | None = None, depth: str = "normal"
