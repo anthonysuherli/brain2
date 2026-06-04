@@ -34,7 +34,9 @@ from brain2.knowledge_graph.drift import assess_drift
 from brain2.knowledge_graph.models import KGSchema
 from brain2.knowledge_graph.schema import propose_schema, validate_schema
 from brain2.livingdocs.distill import run_distill, schedule_distill
+from brain2.livingdocs.journal import persist_journal
 from brain2.livingdocs.notes import persist_note
+from brain2.constants import JOURNAL_SCOPE
 from brain2.livingdocs.paths import DocPaths
 from brain2.livingdocs.policy import NotePolicy, load_policy, save_policy
 from brain2.monitoring.recorder import PREAMBLE_TARGETS
@@ -167,6 +169,45 @@ async def brain2_distill(project: str, kb: str, project_path: str, force: bool =
     distills now and returns {distilled, doc_count, folders}; otherwise it just nudges the
     debounced background distiller. Used by /brain2:docs --rebuild."""
     return await _distill_impl(project, kb, project_path, force)
+
+
+async def _journal_impl(
+    text, type="", tags=None, title="", project="", project_path="", session_id=""
+):
+    ctx = resolve_tenant(JOURNAL_SCOPE, JOURNAL_SCOPE, create=True)
+    res = await persist_journal(
+        ctx,
+        text=text,
+        type=type,
+        tags=tags or [],
+        title=title,
+        originating_project=project,
+        session_id=session_id,
+    )
+    return {**res, "scope": "journal"}
+
+
+@mcp.tool()
+async def brain2_journal(
+    text: str,
+    type: str = "",
+    tags: list[str] | None = None,
+    title: str = "",
+    project: str = "",
+    project_path: str = "",
+    session_id: str = "",
+) -> dict:
+    """Write a personal JOURNAL entry — cross-project, searchable any time.
+
+    Unlike brain2_note (a session note bound to the current repo+branch, written
+    at session end), the journal is your global notebook: call this WHENEVER
+    something is worth keeping — an insight, a decision, a reflection, a pointer.
+    `type` is a free label (insight | reflection | reference | decision) and
+    `tags` add filterable keywords; both feed search. `title` is optional (the
+    first line is used if omitted). `project`/`project_path` are optional context
+    (where you were) stamped into provenance — storage is always the journal
+    scope. Returns {finding_id, entry_path, scope}."""
+    return await _journal_impl(text, type, tags, title, project, project_path, session_id)
 
 
 @mcp.tool()

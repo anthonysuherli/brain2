@@ -51,3 +51,25 @@ async def test_persist_journal_writes_finding_and_global_md(tmp_path, monkeypatc
     assert "journal" in got["tags"] and "insight" in got["tags"] and "arch" in got["tags"]
 
     store_pkg._local_stores.clear()
+
+
+async def test_brain2_journal_tool_writes_entry(tmp_path, monkeypatch):
+    monkeypatch.setenv("BRAIN2_BACKEND", "local")
+    monkeypatch.setenv("BRAIN2_DB_PATH", str(tmp_path / "brain.db"))
+
+    import brain2.livingdocs.journal as journal_mod
+    import brain2.store as store_pkg
+    from brain2.interfaces.mcp import server
+
+    store_pkg._local_stores.clear()
+    monkeypatch.setattr(journal_mod, "embed_batch", _fake_embed_batch)
+
+    res = await server._journal_impl(
+        text="prefer scope filters over separate corpora", type="decision"
+    )
+
+    assert res["finding_id"]
+    assert res["scope"] == "journal"
+    assert res["entry_path"].endswith(".md")
+
+    store_pkg._local_stores.clear()
