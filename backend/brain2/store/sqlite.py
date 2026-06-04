@@ -38,10 +38,10 @@ from pathlib import Path
 import sqlite_vec
 from sqlite_vec import serialize_float32
 
+from brain2.constants import JOURNAL_SCOPE
+
 # Synthetic single-tenant org for the local tier.
 _ORG = "local"
-
-from brain2.constants import JOURNAL_SCOPE
 
 # Column lists kept in lockstep with findings/service.py + the match RPC.
 _FINDING_COLS = ("id", "title", "content", "category", "confidence", "tags", "provenance", "created_at")
