@@ -1,0 +1,57 @@
+"""Shared resume core — resolve the tenant, get the store, select the preamble.
+
+    resolve_tenant(create=…) ─► get_store ─► select_preamble ─► ResumeResult
+
+Factored out of the call sites that tap a KB the same way (``interfaces/mcp/server.py::
+br8n_resume``, ``api/resume.py::resume``, and the ``hooks/preamble-inject.py``
+UserPromptSubmit hook) so the resolve+select trio can't drift. Returns the resolved
+``ctx``/``store`` alongside the preamble so callers needing them for follow-on work
+(``record_access``, snapshot counts, JSON assembly) don't re-resolve.
+
+May raise — ``resolve_tenant(create=False)`` raises on an unknown project/kb. Callers
+that must stay silent (the hook) wrap the call in try/except.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+from br8n.agent.preamble import Coverage, Depth, select_preamble
+
+if TYPE_CHECKING:
+    from br8n.agent.state import Principal, TenantContext
+    from br8n.store import Store
+
+
+@dataclass
+class ResumeResult:
+    ctx: "TenantContext"
+    store: "Store"
+    preamble: str
+    coverage: Coverage
+
+
+async def resume_preamble(
+    project: str,
+    kb: str,
+    query: str | None,
+    *,
+    depth: Depth = "normal",
+    principal: "Principal | None" = None,
+    create: bool = False,
+) -> ResumeResult:
+    """Resolve the KB and return its query-aware preamble + coverage.
+
+    ``create=False`` by default (a read): an unknown project/kb raises rather than
+    being created. ``principal`` threads the per-request cloud identity; omit it for
+    the local tier / configured-MCP-user path.
+    """
+    # Lazy imports: keep this module free of import cycles (tenancy imports agent.state;
+    # store is heavy). Mirrors the lazy-import idiom in interfaces/mcp/tenancy.py.
+    from br8n.interfaces.mcp.tenancy import resolve_tenant
+    from br8n.store import get_store
+
+    ctx = resolve_tenant(project, kb, create=create, principal=principal)
+    store = get_store(ctx.access_token, org_id=ctx.org_id)
+    preamble, coverage = await select_preamble(query, store=store, kb_id=ctx.kb_id, depth=depth)
+    return ResumeResult(ctx=ctx, store=store, preamble=preamble, coverage=coverage)

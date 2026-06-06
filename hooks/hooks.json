@@ -1,0 +1,46 @@
+{
+  "description": "SessionStart guard: first registers the br8n resume-cue statusline in the user's GLOBAL Claude settings (idempotent, never clobbers a user's own statusLine) so the cross-repo cue shows in every repo; then on a new repo, seeds a br8n KB and offers the KG schema wizard; on an existing KB, asks the drift detector whether to surface a (debounced, non-blocking) schema-(re)design offer. SessionStart also installs the commit-boundary auto-capture hook (a post-commit re-anchor; no continuous watcher). UserPromptSubmit injects the current repo+branch KB preamble before each turn (silent, fail-safe).",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python ${CLAUDE_PLUGIN_ROOT}/hooks/preamble-inject.py",
+            "timeout": 8
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python ${CLAUDE_PLUGIN_ROOT}/hooks/first-run-init.py",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "python ${CLAUDE_PLUGIN_ROOT}/hooks/auto-capture.py",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python ${CLAUDE_PLUGIN_ROOT}/hooks/session-note.py",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

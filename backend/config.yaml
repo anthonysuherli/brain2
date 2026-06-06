@@ -1,0 +1,40 @@
+# br8n engine config — layered on top of Delapan defaults.
+# Override any section/field with env var B2_<SECTION>__<FIELD> (highest
+# precedence), e.g. B2_SEARCH__DEFAULT_LIMIT=20.
+#
+# NOTE: storage-backend selection is NOT configured here. It is driven by the
+# BR8N_BACKEND env var ("local" | "cloud"); if unset, br8n uses cloud iff
+# Supabase creds are present, else local. See .env.example.
+
+agent:
+  model: "claude-sonnet-4-6"
+  fast_model: "claude-haiku-4-5"
+
+synopsis:
+  model: "claude-haiku-4-5"
+  rebuild_delta: 5          # snapshots accumulate faster than research findings
+
+search:
+  default_limit: 10
+  min_similarity: 0.0
+
+tiers:
+  rich_hit_count: 3
+  preamble_char_budget: 5000  # resume card is tighter than a full chat preamble
+
+exploration:
+  # Vercel AI Gateway slugs — the gateway has no `-latest` alias, so the old
+  # `mistral/mistral-large-latest` 404s (model_not_found). Mirrors the dlapan
+  # engine's proven cost/quality split: cheap flash on every-explore steps,
+  # frontier (1M-ctx) only on the quality-critical extraction step.
+  planner_model: "google/gemini-3.5-flash"
+  extraction_model: "google/gemini-3.1-pro-preview"
+  extraction_fallback_model: "google/gemini-3.5-flash"
+  evaluation_model: "google/gemini-3.5-flash"
+  # persistence cap — findings kept per explore when the caller passes none.
+  # Ceiling stays at the code default (max_findings: 40); 25 fits under it.
+  default_max_findings: 25
+
+activity:
+  task_model: "google/gemini-3.5-flash"
+  task_fallback_model: "google/gemini-3.5-flash"

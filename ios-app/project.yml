@@ -1,0 +1,54 @@
+name: Br8n
+options:
+  bundleIdPrefix: dev.br8n
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""   # set your team for device builds / Sign in with Apple
+
+targets:
+  Br8n:
+    type: application
+    platform: iOS
+    sources:
+      - path: Br8n
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.br8n.app
+        INFOPLIST_FILE: Br8n/Info.plist
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_PREVIEWS: YES
+    entitlements:
+      path: Br8n/Br8n.entitlements
+      properties:
+        com.apple.developer.applesignin:
+          - Default
+
+  Br8nTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Br8nTests
+    dependencies:
+      - target: Br8n
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.br8n.app.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Br8n:
+    build:
+      targets:
+        Br8n: all
+        Br8nTests: [test]
+    test:
+      targets:
+        - Br8nTests

@@ -1,0 +1,42 @@
+"""GET /v1/projects — discovery for native clients.
+
+The editor already knows its project + branch; a phone does not. This lists the
+caller's repos (projects) and branches (KBs) with the chips the home screen
+shows — last activity + snapshot count — so the app can route into a resume card
+without the user typing anything. Read-only; backed by the active `Store`.
+"""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+
+from br8n.agent.state import Principal
+from br8n.api.auth import require_principal
+from br8n.store import get_store
+
+router = APIRouter(prefix="/v1", dependencies=[Depends(require_principal)])
+
+
+class KBSummary(BaseModel):
+    kb: str
+    kb_id: str
+    last_activity: str | None = None
+    snapshot_count: int
+
+
+class ProjectSummary(BaseModel):
+    project: str
+    project_id: str
+    kbs: list[KBSummary] = []
+
+
+class ProjectsResponse(BaseModel):
+    projects: list[ProjectSummary]
+
+
+@router.get("/projects", response_model=ProjectsResponse)
+async def list_projects(principal: Principal = Depends(require_principal)) -> ProjectsResponse:
+    """List the caller's projects + KBs (cloud scopes to the authenticated org)."""
+    store = get_store(principal.access_token, org_id=principal.org_id)
+    return ProjectsResponse(projects=store.list_projects())

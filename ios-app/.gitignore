@@ -1,0 +1,12 @@
+# XcodeGen output — regenerate with `xcodegen generate`
+Br8n.xcodeproj/
+
+# Xcode / build
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.swiftpm/
+
+# macOS
+.DS_Store

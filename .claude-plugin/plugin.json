@@ -1,0 +1,20 @@
+{
+  "name": "br8n",
+  "description": "A self-maintaining, portable personal knowledge base. Captures developer context in the background, distills it into a cross-repo graph, and asks for guidance at one seam: its schema. Skills: /br8n:pickup (where I was + cross-repo selector), /br8n:capture (save context), /br8n:search (grounded answer), /br8n:explore (gap-fill), /br8n:activity (cross-repo work graph), /br8n:schema (design/reshape the KG ontology). Backed by the br8n MCP server.",
+  "author": {
+    "name": "Anthony Suherli",
+    "email": "anthonysuherli@gmail.com"
+  },
+  "skills": [
+    "./skills/pickup",
+    "./skills/capture",
+    "./skills/search",
+    "./skills/explore",
+    "./skills/activity",
+    "./skills/schema",
+    "./skills/notes",
+    "./skills/docs",
+    "./skills/journal"
+  ],
+  "hooks": "./hooks/hooks.json"
+}

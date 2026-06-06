@@ -1,0 +1,7 @@
+{
+  "enabledPlugins": {},
+  "statusLine": {
+    "type": "command",
+    "command": "python3 /Users/suherli/Repositories/br8n/scripts/br8n-statusline.py"
+  }
+}

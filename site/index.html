@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>br8n — a knowledge base that maintains itself</title>
+<meta name="description" content="br8n watches you work, distills what it learns into one personal graph, and keeps it organized in the background — across every repo and machine. You manage it by conversation; it asks for guidance at one seam: when its schema needs to change. Local-first, loopback-only." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="stripe"></div>
+
+  <!-- ── NAV ─────────────────────────────────────────────────────────── -->
+  <nav class="bar">
+    <div class="wrap">
+      <a class="brand" href="index.html"><span class="mark">◌</span> br8n</a>
+      <span class="spacer"></span>
+      <div class="navlinks hide-sm">
+        <a href="how-it-works.html">how it works</a>
+        <a href="access.html">access</a>
+        <a href="install.html">install</a>
+      </div>
+      <a class="nav-repo hide-sm" href="https://github.com/" target="_blank" rel="noopener">repo ↗</a>
+      <a class="nav-cta" href="install.html">install free</a>
+    </div>
+  </nav>
+
+  <!-- ── HERO ────────────────────────────────────────────────────────── -->
+  <section class="hero hero-glow">
+    <div class="wrap">
+      <div class="t-hero">
+        <div>
+          <div class="kicker"><span class="mark">◌</span> br8n · the self-maintaining knowledge base</div>
+          <h1>A knowledge base
+that maintains itself.</h1>
+
+          <p class="subline">br8n watches you work, distills what it learns into one personal graph, and keeps it organized in the background — across every repo and every machine. You manage it by conversation; it asks for your guidance at exactly one seam: when its schema needs to change.</p>
+
+          <form class="hero-form" onsubmit="return false;">
+            <input type="email" placeholder="your email" aria-label="email for portable cloud early access" />
+            <button class="btn primary" type="submit">request cloud access ›</button>
+          </form>
+          <div class="hero-microcopy">free &amp; local today — <a href="install.html">install in two lines ›</a> &nbsp;·&nbsp; portable cloud, early access</div>
+
+          <div class="hero-chips">
+            <span class="hchip"><b>captures</b> by watching</span>
+            <span class="hchip"><b>distills</b> into concepts</span>
+            <span class="hchip"><b>guided</b> at the schema</span>
+            <span class="hchip"><b>portable</b> · one graph, every repo</span>
+          </div>
+        </div>
+
+        <!-- live session (hero) -->
+        <div class="session">
+          <div class="session-bar">
+            <span class="dots"><i class="r"></i><i></i><i></i></span>
+            <span class="ttl">br8n@engine — session</span>
+            <span class="live"><span class="d"></span> live</span>
+          </div>
+          <div class="session-body">
+            <div class="ln"><span class="cmd">br8n</span> <span class="kw">capture</span> <span class="arg">dev · 4 files · auto-snapshot</span></div>
+            <div class="ln sub"><span class="ok">✓</span> <span class="arg">activity graph + concept distilled · background</span></div>
+            <div class="ln"><span class="cmd">br8n</span> <span class="kw">watch</span> <span class="arg">residual 7/20 · ontology drift ↑</span></div>
+            <div class="ln sub"><span class="gp">◆</span> <span class="hot">unplaced</span> <span class="session-tag">deployment</span> <span class="session-tag">rollback</span> <span class="session-tag">incident</span></div>
+            <div class="ln"><span class="cmd">br8n</span> <span class="kw">schema</span> <span class="arg">drift detected → propose</span></div>
+            <div class="ln sub"><span class="arg">one question at a time · you steer</span></div>
+            <div class="ln sub"><span class="add">+</span> <span class="hot">node</span> <span class="arg">Deployment</span> &nbsp;&nbsp;<span class="add">+</span> <span class="hot">edge</span> <span class="arg">caused→ Incident</span></div>
+            <div class="ln sub"><span class="ok">✓</span> <span class="arg">schema v3 · 7 residuals re-typed</span></div>
+            <div class="ln"><span class="cmd">br8n</span> <span class="kw">context</span> <span class="arg">repoA/dev → repoB/main</span></div>
+            <div class="ln sub"><span class="gp">▸</span> <span class="arg">~1,750 tokens · concepts over evidence · synced</span><span class="cursor-blk"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── THE PROBLEM ─────────────────────────────────────────────────── -->
+  <section id="tax" class="sec bordered washed">
+    <div class="wrap">
+      <div class="kicker"><span class="mark">◌</span> the problem</div>
+      <div class="t-context tax-grid">
+        <div>
+          <div class="stat">9.5<span class="unit">min</span></div>
+          <p class="tax-copy">The visible cost — the time to rebuild mental context after one interruption. The deeper cost is quieter: every insight you don't write down evaporates, and nothing you learn in one repo ever carries to the next.</p>
+        </div>
+        <div class="reckon">
+          <div class="hdr"># knowledge that doesn't compound</div>
+          <div class="eq">
+            <span><span class="n">6</span> switches</span>
+            <span class="op">×</span>
+            <span><span class="n">9.5</span> min</span>
+            <span class="op">=</span>
+            <span class="total">≈57 min<span class="per">/day</span></span>
+          </div>
+          <div class="div"></div>
+          <p>Nearly an hour a day reconstructing state you already had — and a graph of hard-won context that resets to zero with every new repo. br8n keeps it instead, so the next session starts ahead.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── HOW IT WORKS (teaser) ───────────────────────────────────────── -->
+  <section id="how" class="sec" style="padding:70px 0;">
+    <div class="wrap">
+      <div class="kicker"><span class="mark">◌</span> how it works</div>
+      <h2 class="sec-title">It maintains itself. You guide it once — at the schema.</h2>
+      <div class="engine-flow" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stage">
+          <div class="sh">
+            <span class="sn">01</span>
+            <span class="sv">background</span>
+          </div>
+          <h3>Watch</h3>
+          <p>A subagent watches you work and snapshots state on every change — branch, files, diff, a one-line hypothesis — then distills each session into <span class="id">concepts</span> in your graph. No command to run, no note to write.</p>
+        </div>
+        <div class="stage">
+          <div class="sh">
+            <span class="sn">02</span>
+            <span class="sv">guided</span>
+          </div>
+          <h3>Organize</h3>
+          <p>br8n tracks what doesn't fit its ontology. When that residual crosses a threshold — or you've collected enough to start — it offers, at a turn boundary, to <span class="id">design the schema</span> with you: one question at a time, you steer, it applies.</p>
+        </div>
+        <div class="stage">
+          <div class="sh">
+            <span class="sn">03</span>
+            <span class="sv">portable</span>
+          </div>
+          <h3>Ground</h3>
+          <p>Anywhere you work, tap the graph for <span class="id">~1,750 tokens</span> of concepts over evidence — scoped to where you are, drawn from every repo. On the cloud tier the same slice follows you across machines.</p>
+        </div>
+      </div>
+      <p style="margin-top:26px; font-size:13px; color:var(--dim);">
+        Everything but the schema step runs in the background and fails silent. <a class="morelink" href="how-it-works.html">See the knowledge engine underneath ›</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- ── TIERS (compact, free-led) ───────────────────────────────────── -->
+  <section id="tiers" class="sec bordered washed" style="padding:70px 0;">
+    <div class="wrap">
+      <div class="kicker"><span class="mark">◌</span> tiers</div>
+      <h2 class="sec-title">Local-first by default. Cloud when it's ready.</h2>
+      <div class="t-tiers">
+        <!-- FREE / LOCAL -->
+        <div class="tier free">
+          <div class="tier-head">
+            <span class="nm">Free / Local</span>
+            <span class="badge ship">shipping</span>
+          </div>
+          <div class="price"><span class="big">$0</span> · no account</div>
+          <div class="bullets">
+            <div class="bullet"><span class="m">✓</span><span class="x">SQLite — your data stays on disk</span></div>
+            <div class="bullet"><span class="m">✓</span><span class="x">Loopback-only (127.0.0.1)</span></div>
+            <div class="bullet"><span class="m">✓</span><span class="x">No account, no API key</span></div>
+            <div class="bullet"><span class="m">✓</span><span class="x">Single device</span></div>
+          </div>
+          <a class="btn primary" href="install.html">install free · runs locally</a>
+        </div>
+
+        <!-- CLOUD -->
+        <div class="tier cloud">
+          <div class="tier-head">
+            <span class="nm">Cloud</span>
+            <span class="badge soon">coming soon</span>
+          </div>
+          <div class="price"><span class="lead">when it lands:</span> your context follows you</div>
+          <div class="planned"># planned · not shipping yet</div>
+          <div>
+            <div class="bullet off"><span class="m">◦</span><span class="x">Cross-machine sync</span></div>
+            <div class="bullet off"><span class="m">◦</span><span class="x">Cross-repo search</span></div>
+            <div class="bullet off"><span class="m">◦</span><span class="x">Team sharing</span></div>
+            <div class="bullet off"><span class="m">◦</span><span class="x">Managed keys</span></div>
+          </div>
+        </div>
+      </div>
+      <p style="margin-top:22px; font-size:12.5px; color:var(--dim2); max-width:560px;">
+        br8n launches free, forever, on your machine. Cloud is for when you want your context to follow you across machines — it's designed, not yet built.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── INSTALL CTA (slim) ──────────────────────────────────────────── -->
+  <section class="cta-band bordered">
+    <div class="wrap">
+      <div class="cta-copy">
+        <h2>Two lines. Runs on 127.0.0.1.</h2>
+        <p>No account, no key — the loopback backend keeps everything on your machine.</p>
+        <a class="morelink" href="install.html" style="display:inline-block; margin-top:12px;">Full quickstart — MCP, VS Code, both tiers ›</a>
+      </div>
+      <div class="install-stack" style="max-width:480px;">
+        <div class="install">
+          <span class="dollar">$</span>
+          <code>pip install br8n</code>
+          <button class="copy" data-copy="pip install br8n" aria-label="copy install command">copy</button>
+        </div>
+        <div class="install">
+          <span class="dollar">$</span>
+          <code>BR8N_BACKEND=local python -m br8n.api.main</code>
+          <button class="copy" data-copy="BR8N_BACKEND=local python -m br8n.api.main" aria-label="copy run command">copy</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ──────────────────────────────────────────────────────── -->
+  <footer>
+    <div class="wrap">
+      <div class="foot-top">
+        <div class="foot-brand">
+          <span class="b"><span class="mark">◌</span> br8n</span>
+          <p>A knowledge base that maintains itself. Local-first, loopback-only, yours.</p>
+        </div>
+        <div class="foot-cols">
+          <div class="foot-col">
+            <div class="h">product</div>
+            <a href="how-it-works.html">how it works</a><a href="access.html">access</a><a href="install.html">install</a>
+          </div>
+          <div class="foot-col">
+            <div class="h">repo</div>
+            <a href="#">github</a><a href="#">releases</a><a href="#">issues</a>
+          </div>
+          <div class="foot-col">
+            <div class="h">docs</div>
+            <a href="install.html">quickstart</a><a href="how-it-works.html#engine">the engine</a><a href="access.html">surfaces</a>
+          </div>
+          <div class="foot-col">
+            <div class="h">license</div>
+            <a href="#">MIT</a><a href="#">security</a><a href="#">changelog</a>
+          </div>
+        </div>
+      </div>
+      <div class="foot-base">◌ delapan mark · br8n — captured while you work, organized in the background, yours across every repo.</div>
+    </div>
+  </footer>
+
+  <script src="site.js"></script>
+</body>
+</html>

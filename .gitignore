@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+.env
+
+# Node / VS Code extension
+node_modules/
+out/
+*.vsix
+.DS_Store
+
+# Misc
+.ruff_cache/
+.pytest_cache/
+*.log
+.worktrees/
+.claude/scheduled_tasks.lock
