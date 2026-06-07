@@ -69,6 +69,59 @@ async def test_run_timeline_appends_and_regenerates(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_run_timeline_appends_beyond_default_list_cap(tmp_path, monkeypatch):
+    """All new events must land in all-time.md even past the store's default 20-row cap."""
+    monkeypatch.setenv("BR8N_BACKEND", "local")
+    monkeypatch.setenv("BR8N_DB_PATH", str(tmp_path / "brain.db"))
+    monkeypatch.setenv("BR8N_TIMELINE_LLM", "0")
+
+    import br8n.store as store_pkg
+    import br8n.livingdocs.notes as notes_mod
+
+    store_pkg._local_stores.clear()
+    monkeypatch.setattr(notes_mod, "embed_batch", _fake_embed_batch)
+    monkeypatch.setattr(notes_mod, "schedule_rebuild", lambda ctx: None)
+
+    from br8n.interfaces.mcp.tenancy import resolve_tenant
+    from br8n.livingdocs.notes import persist_note
+    from br8n.livingdocs.paths import DocPaths
+    from br8n.livingdocs.timeline import run_timeline
+
+    ctx = resolve_tenant("proj", "main", create=True)
+    for i in range(22):
+        await persist_note(
+            ctx, project_path=str(tmp_path), kb="main",
+            content=f"# Note {i:02d}\n\nbody {i:02d}", session_id=f"s{i}",
+            title=f"Note {i:02d}",
+        )
+
+    res = await run_timeline(ctx, project="proj", project_path=str(tmp_path), kb="main")
+    assert res["appended"] == 22
+
+    all_time = (DocPaths(project_path=str(tmp_path), kb="main").timeline_dir / "all-time.md").read_text()
+    for i in range(22):
+        assert f"Note {i:02d}" in all_time
+
+    store_pkg._local_stores.clear()
+
+
+@pytest.mark.asyncio
+async def test_run_timeline_respects_living_docs_master_gate(tmp_path, monkeypatch):
+    """BR8N_LIVING_DOCS=0 disables the whole subsystem, incl. a forced timeline pass."""
+    monkeypatch.setenv("BR8N_LIVING_DOCS", "0")
+
+    from br8n.agent.state import TenantContext
+    from br8n.livingdocs.paths import DocPaths
+    from br8n.livingdocs.timeline import run_timeline
+
+    ctx = TenantContext(user_id="local", org_id="local", project_id="p",
+                        kb_id="k", thread_id="t", access_token="")
+    res = await run_timeline(ctx, project="p", project_path=str(tmp_path), kb="main")
+    assert res == {"appended": 0}
+    assert not (DocPaths(project_path=str(tmp_path), kb="main").timeline_dir / "all-time.md").exists()
+
+
+@pytest.mark.asyncio
 async def test_run_timeline_best_effort_on_bad_store(tmp_path, monkeypatch):
     """A failure inside the pass returns {'appended': 0}, never raises."""
     import br8n.livingdocs.timeline as tl

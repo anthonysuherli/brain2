@@ -36,6 +36,11 @@ from br8n.store import get_store
 
 logger = logging.getLogger(__name__)
 
+# The store caps list_findings at 100 (LIST_MAX_LIMIT) and defaults to 20; the timeline
+# wants completeness per pass, so request the cap explicitly. The debounce (N events /
+# T minutes) keeps the per-pass delta well under this bound in practice.
+_FETCH_LIMIT = 100
+
 
 # --- event carrier -----------------------------------------------------------
 
@@ -97,7 +102,7 @@ def append_all_time(
     paths.timeline_dir.mkdir(parents=True, exist_ok=True)
     f = paths.timeline_dir / "all-time.md"
     chunks: list[str] = []
-    if not f.exists():
+    if events and not f.exists():
         chunks.append(f"# Activity — {project}/{kb}\n")
     day = last_appended_day
     for e in events:
@@ -160,7 +165,7 @@ def _events_from_kb(
     """Collect events of one `category` from one KB. Best-effort: [] on any error."""
     out: list[TimelineEvent] = []
     try:
-        listed = store.list_findings(kb_id, category=category)
+        listed = store.list_findings(kb_id, category=category, limit=_FETCH_LIMIT)
         rows = listed.get("findings", []) if isinstance(listed, dict) else []
     except Exception:  # noqa: BLE001 — a missing/unreadable source is skipped
         return out
@@ -188,7 +193,7 @@ def _journal_events(
     try:
         jctx = resolve_tenant(JOURNAL_SCOPE, JOURNAL_SCOPE, create=False)
         store = get_store(jctx.access_token, org_id=jctx.org_id)
-        listed = store.list_findings(jctx.kb_id, category="journal")
+        listed = store.list_findings(jctx.kb_id, category="journal", limit=_FETCH_LIMIT)
         rows = listed.get("findings", []) if isinstance(listed, dict) else []
     except Exception:  # noqa: BLE001 — no journal yet / backend error → none
         return out
@@ -286,7 +291,7 @@ async def run_timeline(
     """Append new events to all-time.md and regenerate recent.md/week.md.
 
     Best-effort: any failure logs and returns ``{"appended": 0}`` (never raises)."""
-    if os.getenv("BR8N_TIMELINE", "1") == "0":
+    if os.getenv("BR8N_LIVING_DOCS", "1") == "0" or os.getenv("BR8N_TIMELINE", "1") == "0":
         return {"appended": 0}
     try:
         cfg = get_config().living_docs
@@ -306,7 +311,6 @@ async def run_timeline(
         recent = _window_events(window_all, cfg.recent_days, now)
         week = _window_events(window_all, cfg.week_days, now)
         headers = await _infer_day_headers(week)  # one call covers both windows
-        ensure_layout(paths)
         paths.timeline_dir.mkdir(parents=True, exist_ok=True)
         (paths.timeline_dir / "recent.md").write_text(
             render_window("recent", recent, day_headers=headers)
