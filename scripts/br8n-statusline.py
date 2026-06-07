@@ -109,6 +109,7 @@ def parse_diff_stat_block(content: str | None) -> set:
 
 # ── drift & state ────────────────────────────────────────────────────────────
 DRIFT_FILES_WARN = 2        # ≥N files moved in/out of changed-set → drifted
+JUST_CAPTURED_AGE = 2 * 60  # 2 min: window for the "just captured" save cue
 STALE_AGE        = 30 * 60  # 30 min: boundary between fresh (green) and dim
 IDLE_AGE         = 24 * 3600  # 1 day: quiet idle threshold
 
@@ -181,6 +182,12 @@ def render_line2(
         return f"   {YELLOW}⚡{RESET} no capture yet · {DIM}/br8n:capture to anchor{RESET}"
 
     if state == "FRESH":
+        if age_secs < JUST_CAPTURED_AGE:
+            # Distinct cue for a just-completed (silent) capture — echoes the saved
+            # hypothesis so the statusline confirms *what* was anchored, then decays
+            # to the steady "fresh" line below after JUST_CAPTURED_AGE.
+            echo = f' · {DIM}"{truncate(hypothesis, 38)}"{RESET}' if hypothesis else ""
+            return f"   {GREEN}✓{RESET} just captured{echo}"
         age_part = f" · captured {age_str} ago" if age_str else ""
         moved_glyph = ""
         if moved > 0:

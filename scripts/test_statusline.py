@@ -238,11 +238,34 @@ def test_render_line2_no_capture():
 
 
 def test_render_line2_fresh_no_action():
-    line = _strip(sl.render_line2("FRESH", age_secs=60, moved=0, commits=0,
+    # age past JUST_CAPTURED_AGE → steady "fresh" line (not the just-captured cue)
+    line = _strip(sl.render_line2("FRESH", age_secs=600, moved=0, commits=0,
                                    hypothesis="x", hyp_fits=True, utf8=False))
     assert "fresh" in line
     assert "/resume" not in line
     assert "/br8n:capture" not in line
+
+
+def test_render_line2_just_captured_cue():
+    # age inside JUST_CAPTURED_AGE → distinct just-captured cue echoing the hypothesis
+    line = _strip(sl.render_line2("FRESH", age_secs=5, moved=0, commits=0,
+                                   hypothesis="wire the silent capture cue", hyp_fits=True, utf8=False))
+    assert "just captured" in line
+    assert "wire the silent capture cue" in line
+
+
+def test_render_line2_just_captured_no_hypothesis():
+    line = _strip(sl.render_line2("FRESH", age_secs=5, moved=0, commits=0,
+                                   hypothesis=None, hyp_fits=True, utf8=False))
+    assert "just captured" in line
+    assert '"' not in line  # no empty quotes when there's no hypothesis
+
+
+def test_render_line2_fresh_decays_past_just_captured():
+    line = _strip(sl.render_line2("FRESH", age_secs=300, moved=0, commits=0,
+                                   hypothesis="x", hyp_fits=True, utf8=False))
+    assert "just captured" not in line
+    assert "fresh" in line
 
 
 def test_render_line2_fresh_shows_age():

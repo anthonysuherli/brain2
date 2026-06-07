@@ -50,7 +50,17 @@ mcp__plugin_br8n_br8n__br8n_capture(
 )
 ```
 
-## Step 3 — Confirm
+## Step 3 — Silent confirm
 
-Report the returned `finding_id` and echo the saved hypothesis so the user knows
-exactly what a future resume will replay.
+Capture is **silent by design** — the statusline carries the hint, not the chat. Do
+**not** print the `finding_id`, dump the snapshot, or echo the hypothesis back.
+Emit a single terse line and nothing more:
+
+```
+captured ✓
+```
+
+The br8n statusline reflects the save on the next render: line 1 shows
+`🧠 {project} ▶ {branch} "{hypothesis}"` and line 2 shows `✓ just captured
+"{hypothesis}"` (decaying to `✓ fresh · captured Xm ago` after ~2 min). That cue
+is the user-facing confirmation of exactly what a future `/br8n:pickup` will replay.
