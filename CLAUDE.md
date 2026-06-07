@@ -182,6 +182,12 @@ python -m br8n.interfaces.mcp.server          # add to .claude/settings.json
   a graph failure never breaks a capture. Gates: `BR8N_ACTIVITY_KG` (master,
   default on), `BR8N_ACTIVITY_LLM` (task pass, default on — off = deterministic
   only). Design: `docs/plans/2026-05-30-activity-kg-design.md`.
+- [x] Activity timeline — per-repo+branch append-only chronological log of
+  notes+captures+journal. `all-time.md` (append-only) + regenerated `recent.md`/
+  `week.md` window views at `.br8n/timeline/`. Background, debounced, cursor-driven
+  (mirrors the doc-tree distill); surfaces: `br8n_timeline` MCP tool + `/br8n:timeline`
+  skill. Gates: `BR8N_TIMELINE` (master), `BR8N_TIMELINE_LLM` (window day-headers).
+  Design + plan: `docs/plans/2026-06-07-timeline-{design,plan}.md`.
 - [x] Multi-user cloud auth (backend) — per-request Supabase GoTrue JWT drives
   tenancy: `require_principal` verifies the JWT and provisions the org;
   `resolve_tenant(principal=…)` injects the caller's org/token into the `Store`
@@ -217,6 +223,7 @@ python -m br8n.interfaces.mcp.server          # add to .claude/settings.json
 | `br8n_projects` | List every repo+branch you've captured to (powers the `/br8n:pickup` selector) |
 | `br8n_explore` | Run gap-fill pipeline synchronously (blocks ~1-3 min) |
 | `br8n_activity` | Query the cross-repo activity graph (subgraph + NL summary) |
+| `br8n_timeline` | (Re)build the append-only activity timeline (`.br8n/timeline/`) from notes+captures+journal |
 
 ## Plugin (Claude Code skills)
 
@@ -232,6 +239,7 @@ skills/
   search/SKILL.md             /br8n:search <q> — grounded answer from session KB
   explore/SKILL.md            /br8n:explore <p> — force the gap-fill pipeline
   activity/SKILL.md           /br8n:activity <q> — query the cross-repo activity graph
+  timeline/SKILL.md           /br8n:timeline — the append-only activity log (recent/week/all-time)
 ```
 
 **Target resolution** (simpler than Delapan — no active-KB state):
