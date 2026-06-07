@@ -224,3 +224,116 @@ async def _gather_events(
     events += _journal_events(project, since)
     events.sort(key=_sort_key)
     return events
+
+
+# --- gated LLM day-headers (window views only) -------------------------------
+
+class _DayHeaders(BaseModel):
+    headers: dict[str, str] = Field(
+        default_factory=dict,
+        description="Map of YYYY-MM-DD → a SHORT one-line summary of that day",
+    )
+
+
+_DAY_SYSTEM = (
+    "You summarize a developer's day of activity into ONE short line (<= 12 words),\n"
+    "present tense, no trailing period. Given events grouped by date, return JSON\n"
+    '{"headers": {"YYYY-MM-DD": "short summary", ...}} with one entry per date.'
+)
+
+
+async def _infer_day_headers(events: list[TimelineEvent]) -> dict[str, str]:
+    """One-line LLM summary per day for the window views. Gated + best-effort.
+
+    `BR8N_TIMELINE_LLM=0` (or any failure) → ``{}`` (callers fall back to plain
+    dividers). Mirrors ``distill._infer_topics``."""
+    if not events or os.getenv("BR8N_TIMELINE_LLM", "1") == "0":
+        return {}
+    by_day: dict[str, list[str]] = {}
+    for e in events:
+        by_day.setdefault(_event_day(e), []).append(f"{e.kind}: {e.title} — {e.gist}")
+    user = "\n".join(
+        f"{day}:\n" + "\n".join(f"  - {x}" for x in items)
+        for day, items in sorted(by_day.items())
+    )
+    cfg = get_config().living_docs
+    try:
+        result = await structured_completion(
+            model=cfg.distill_model,
+            response_format=_DayHeaders,
+            system=_DAY_SYSTEM,
+            user=user,
+            temperature=cfg.temperature,
+            fallback_model=cfg.distill_fallback_model,
+            use_json_schema=False,
+        )
+        return {str(k): str(v).strip() for k, v in (result.headers or {}).items()}
+    except Exception as exc:  # noqa: BLE001 — day headers are best-effort
+        logger.warning("timeline day-header inference failed (%s); plain dividers", exc)
+        return {}
+
+
+# --- the pass (best-effort) --------------------------------------------------
+
+def _window_events(events: list[TimelineEvent], days: int, now: datetime) -> list[TimelineEvent]:
+    cutoff = (now - timedelta(days=days)).isoformat()
+    return [e for e in events if e.ts >= cutoff]
+
+
+async def run_timeline(
+    ctx: TenantContext, *, project: str, project_path: str, kb: str
+) -> dict:
+    """Append new events to all-time.md and regenerate recent.md/week.md.
+
+    Best-effort: any failure logs and returns ``{"appended": 0}`` (never raises)."""
+    if os.getenv("BR8N_TIMELINE", "1") == "0":
+        return {"appended": 0}
+    try:
+        cfg = get_config().living_docs
+        paths = DocPaths(project_path=project_path, kb=kb)
+        st = load_timeline_state(paths)
+        cursor = (st.last_event_ts, st.last_event_id) if st.last_event_ts else None
+
+        # 1) append-only all-time log (cursor-bounded)
+        new_events = await _gather_events(ctx, project=project, since=cursor)
+        new_day = append_all_time(
+            paths, project, kb, new_events, last_appended_day=st.last_appended_day
+        )
+
+        # 2) regenerate the two window views from a fresh windowed read
+        now = datetime.now(timezone.utc)
+        window_all = await _gather_events(ctx, project=project, since=None)
+        recent = _window_events(window_all, cfg.recent_days, now)
+        week = _window_events(window_all, cfg.week_days, now)
+        headers = await _infer_day_headers(week)  # one call covers both windows
+        ensure_layout(paths)
+        paths.timeline_dir.mkdir(parents=True, exist_ok=True)
+        (paths.timeline_dir / "recent.md").write_text(
+            render_window("recent", recent, day_headers=headers)
+        )
+        (paths.timeline_dir / "week.md").write_text(
+            render_window("week", week, day_headers=headers)
+        )
+
+        # 3) advance state
+        if new_events:
+            last = new_events[-1]
+            st.last_event_ts = last.ts
+            st.last_event_id = last.id
+            st.last_appended_day = new_day
+        st.events_since_pass = 0
+        st.last_pass_at = now.isoformat()
+        save_timeline_state(paths, st)
+
+        logger.info("timeline: appended %s events (kb=%s)", len(new_events), kb)
+        return {
+            "appended": len(new_events),
+            "recent_days": cfg.recent_days,
+            "week_days": cfg.week_days,
+            "all_time_path": str(paths.timeline_dir / "all-time.md"),
+            "recent_path": str(paths.timeline_dir / "recent.md"),
+            "week_path": str(paths.timeline_dir / "week.md"),
+        }
+    except Exception:  # noqa: BLE001 — best-effort: must never break a session
+        logger.exception("timeline pass failed for kb=%s", kb)
+        return {"appended": 0}
