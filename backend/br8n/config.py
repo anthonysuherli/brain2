@@ -182,6 +182,14 @@ class LivingDocsConfig(BaseModel):
     distill_debounce_minutes: int = 60
     # Flat until this many notes exist, then allow taxonomy clustering.
     cluster_min_notes: int = 5
+    # --- timeline (append-only activity log) ---
+    timeline_dirname: str = "timeline"
+    timeline_state_filename: str = "timeline-state.json"
+    # Timeline rollup debounce: roll after N new events OR T minutes since last pass.
+    timeline_debounce_n: int = 3
+    timeline_debounce_minutes: int = 60
+    recent_days: int = 3   # recent.md window
+    week_days: int = 7     # week.md window
     distill_model: str = "claude-haiku-4-5"
     distill_fallback_model: str = "openai/gpt-4o-mini"
     temperature: float = 0.0
