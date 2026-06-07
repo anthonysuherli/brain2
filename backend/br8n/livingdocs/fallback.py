@@ -26,6 +26,7 @@ from br8n.agent.state import TenantContext
 from br8n.clients.ai_gateway import structured_completion
 from br8n.config import get_config
 from br8n.livingdocs.notes import persist_note
+from br8n.livingdocs.timeline import schedule_timeline
 from br8n.livingdocs.paths import DocPaths
 from br8n.livingdocs.policy import load_policy
 from br8n.store import get_store
@@ -175,7 +176,7 @@ async def distill_fallback_note(
         content = await _polish_markdown(content, sections)
 
         title = (snaps[0].get("title") or "").strip() or "Session notes"
-        return await persist_note(
+        res = await persist_note(
             ctx,
             project_path=project_path,
             kb=kb,
@@ -184,6 +185,9 @@ async def distill_fallback_note(
             title=title,
             source="backend",
         )
+        project = os.path.basename(os.path.normpath(project_path))
+        schedule_timeline(ctx, project=project, project_path=project_path, kb=kb)
+        return res
     except Exception:  # noqa: BLE001 — best-effort: never break the caller
         logger.exception("fallback note distillation failed (kb=%s, session=%s)", kb, session_id)
         return None

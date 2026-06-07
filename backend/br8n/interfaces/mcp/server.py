@@ -34,6 +34,7 @@ from br8n.knowledge_graph.drift import assess_drift
 from br8n.knowledge_graph.models import KGSchema
 from br8n.knowledge_graph.schema import propose_schema, validate_schema
 from br8n.livingdocs.distill import run_distill, schedule_distill
+from br8n.livingdocs.timeline import run_timeline, schedule_timeline
 from br8n.livingdocs.journal import persist_journal
 from br8n.livingdocs.notes import persist_note
 from br8n.constants import JOURNAL_SCOPE
@@ -81,6 +82,7 @@ async def br8n_capture(
     ctx = resolve_tenant(project, kb, create=True)
     finding_id = await persist_snapshot(ctx, snap)
     schedule_activity_update(snap, finding_id)  # fire-and-forget; best-effort
+    schedule_timeline(ctx, project=project, project_path=project_path, kb=kb)
     return {"finding_id": finding_id, "project": project, "kb": kb}
 
 
@@ -99,6 +101,7 @@ async def _note_impl(
         source=source,
     )
     schedule_distill(ctx, project_path=project_path, kb=kb)
+    schedule_timeline(ctx, project=project, project_path=project_path, kb=kb)
     return {**res, "project": project, "kb": kb}
 
 
@@ -169,6 +172,24 @@ async def br8n_distill(project: str, kb: str, project_path: str, force: bool = F
     distills now and returns {distilled, doc_count, folders}; otherwise it just nudges the
     debounced background distiller. Used by /br8n:docs --rebuild."""
     return await _distill_impl(project, kb, project_path, force)
+
+
+async def _timeline_impl(project, kb, project_path, force=False):
+    ctx = resolve_tenant(project, kb, create=True)
+    if force:
+        res = await run_timeline(ctx, project=project, project_path=project_path, kb=kb)
+        return {"forced": True, **res, "project": project, "kb": kb}
+    schedule_timeline(ctx, project=project, project_path=project_path, kb=kb)
+    return {"forced": False, "scheduled": True, "project": project, "kb": kb}
+
+
+@mcp.tool()
+async def br8n_timeline(project: str, kb: str, project_path: str, force: bool = False) -> dict:
+    """(Re)build the append-only activity timeline at .br8n/timeline/ from this
+    repo+branch's notes + captures + journal. `force=True` runs a pass now and returns
+    {forced, appended, recent_days, week_days, *_path}; otherwise it nudges the debounced
+    background rollup. Used by /br8n:timeline --rebuild."""
+    return await _timeline_impl(project, kb, project_path, force)
 
 
 async def _journal_impl(
