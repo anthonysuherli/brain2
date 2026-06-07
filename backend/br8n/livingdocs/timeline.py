@@ -337,3 +337,41 @@ async def run_timeline(
     except Exception:  # noqa: BLE001 — best-effort: must never break a session
         logger.exception("timeline pass failed for kb=%s", kb)
         return {"appended": 0}
+
+
+# --- scheduling (debounced, fire-and-forget, best-effort) --------------------
+
+_BG_TASKS: set[asyncio.Task] = set()
+
+
+def schedule_timeline(
+    ctx: TenantContext, *, project: str, project_path: str, kb: str
+) -> None:
+    """Bump the pending-event counter and, if the debounce trips, fire a pass.
+
+    No-op when ``BR8N_LIVING_DOCS=0`` or ``BR8N_TIMELINE=0``. Mirrors
+    ``distill.schedule_distill``: holds a strong task ref in ``_BG_TASKS``.
+    Best-effort — no running event loop (or any error) silently no-ops."""
+    if os.getenv("BR8N_LIVING_DOCS", "1") == "0":
+        return
+    if os.getenv("BR8N_TIMELINE", "1") == "0":
+        return
+    try:
+        cfg = get_config().living_docs
+        paths = DocPaths(project_path=project_path, kb=kb)
+        st = load_timeline_state(paths)
+        st.events_since_pass += 1
+        save_timeline_state(paths, st)
+        if not should_roll(
+            st,
+            debounce_n=cfg.timeline_debounce_n,
+            debounce_minutes=cfg.timeline_debounce_minutes,
+        ):
+            return
+        task = asyncio.create_task(
+            run_timeline(ctx, project=project, project_path=project_path, kb=kb)
+        )
+        _BG_TASKS.add(task)
+        task.add_done_callback(_BG_TASKS.discard)
+    except Exception:  # noqa: BLE001 — scheduling is best-effort (e.g. no event loop)
+        logger.debug("timeline schedule skipped", exc_info=True)
