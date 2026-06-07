@@ -24,3 +24,11 @@ def test_ensure_layout_creates_dirs_and_gitignore(tmp_path):
 def test_kb_with_slashes_is_filesystem_safe(tmp_path):
     p = DocPaths(project_path=str(tmp_path), kb="feature/auth-fix")
     assert p.notes_dir == tmp_path / ".br8n" / "notes" / "feature__auth-fix"
+
+
+def test_timeline_paths(tmp_path):
+    from br8n.livingdocs.paths import DocPaths
+
+    p = DocPaths(project_path=str(tmp_path), kb="main")
+    assert p.timeline_dir == p.root / "timeline"
+    assert p.timeline_state_path == p.root / "timeline-state.json"

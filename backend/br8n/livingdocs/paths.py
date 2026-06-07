@@ -35,6 +35,14 @@ class DocPaths:
         return self.root / self._cfg.docs_dirname
 
     @property
+    def timeline_dir(self) -> Path:
+        return self.root / self._cfg.timeline_dirname
+
+    @property
+    def timeline_state_path(self) -> Path:
+        return self.root / self._cfg.timeline_state_filename
+
+    @property
     def policy_path(self) -> Path:
         return self.root / self._cfg.policy_filename
 
