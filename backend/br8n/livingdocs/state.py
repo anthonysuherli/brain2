@@ -51,6 +51,62 @@ def _parse_iso(ts: str) -> datetime:
     return dt
 
 
+class TimelineState(BaseModel):
+    # cursor: the most recently APPENDED event (advances all-time.md)
+    last_event_ts: str = ""      # ISO-8601 UTC of the last appended event
+    last_event_id: str = ""      # its finding id (tie-break on equal ts)
+    last_appended_day: str = ""  # YYYY-MM-DD of the last line in all-time.md
+    # debounce
+    events_since_pass: int = 0   # events appended-or-pending since the last pass
+    last_pass_at: str = ""       # ISO-8601 UTC of the last completed pass; "" = never
+
+
+def load_timeline_state(paths: DocPaths) -> TimelineState:
+    """Read on-disk timeline state; default `TimelineState` on any failure."""
+    try:
+        raw = paths.timeline_state_path.read_text()
+    except (FileNotFoundError, OSError):
+        return TimelineState()
+    try:
+        return TimelineState.model_validate_json(raw)
+    except Exception:  # corrupt JSON / schema drift — never crash
+        return TimelineState()
+
+
+def save_timeline_state(paths: DocPaths, state: TimelineState) -> None:
+    """Persist timeline state, creating the layout if needed."""
+    ensure_layout(paths)
+    paths.timeline_state_path.write_text(json.dumps(state.model_dump(), indent=2) + "\n")
+
+
+def should_roll(
+    state: TimelineState,
+    *,
+    debounce_n: int,
+    debounce_minutes: int,
+    now_iso: str | None = None,
+) -> bool:
+    """Whether to run a timeline pass now (mirrors `should_distill`).
+
+    - `< 1` pending → never.
+    - `>= debounce_n` pending → now.
+    - else if a prior pass exists → once `debounce_minutes` elapsed since it.
+    - never-rolled and below the count threshold → wait.
+    """
+    if state.events_since_pass < 1:
+        return False
+    if state.events_since_pass >= debounce_n:
+        return True
+    if not state.last_pass_at:
+        return False
+    try:
+        last = _parse_iso(state.last_pass_at)
+        now = _parse_iso(now_iso) if now_iso else datetime.now(timezone.utc)
+    except Exception:
+        return False
+    return (now - last).total_seconds() / 60.0 >= debounce_minutes
+
+
 def should_distill(
     state: DocsState,
     *,
