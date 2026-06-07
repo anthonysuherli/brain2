@@ -136,3 +136,91 @@ def render_window(
             cur = d
         lines.append(_event_line(e) + "\n")
     return "".join(lines)
+
+
+# --- event gathering (store-backed, best-effort per source) ------------------
+
+def _is_newer(ts: str, fid: str, since: tuple[str, str] | None) -> bool:
+    return since is None or (ts, fid) > since
+
+
+def _first_line(text: str) -> str:
+    """First non-empty, non-H1 line of a finding body — used as a one-line gist."""
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("# "):
+            continue
+        return line[:200]
+    return ""
+
+
+def _events_from_kb(
+    store, kb_id: str, kind: str, category: str, since: tuple[str, str] | None
+) -> list[TimelineEvent]:
+    """Collect events of one `category` from one KB. Best-effort: [] on any error."""
+    out: list[TimelineEvent] = []
+    try:
+        listed = store.list_findings(kb_id, category=category)
+        rows = listed.get("findings", []) if isinstance(listed, dict) else []
+    except Exception:  # noqa: BLE001 — a missing/unreadable source is skipped
+        return out
+    for row in rows:
+        fid = row.get("id")
+        ts = row.get("created_at") or ""
+        if not fid or not _is_newer(ts, fid, since):
+            continue
+        try:
+            full = store.get_finding(kb_id, fid)
+        except Exception:  # noqa: BLE001 — skip a single unreadable finding
+            full = {}
+        title = (full.get("title") or row.get("title") or "").strip()
+        gist = full.get("hypothesis") or _first_line(full.get("content", ""))
+        out.append(TimelineEvent(ts=ts, kind=kind, title=title or "(untitled)",
+                                  gist=gist, id=fid))
+    return out
+
+
+def _journal_events(
+    project: str, since: tuple[str, str] | None
+) -> list[TimelineEvent]:
+    """Journal entries (JOURNAL_SCOPE KB) stamped with this `project`. Best-effort."""
+    out: list[TimelineEvent] = []
+    try:
+        jctx = resolve_tenant(JOURNAL_SCOPE, JOURNAL_SCOPE, create=False)
+        store = get_store(jctx.access_token, org_id=jctx.org_id)
+        listed = store.list_findings(jctx.kb_id, category="journal")
+        rows = listed.get("findings", []) if isinstance(listed, dict) else []
+    except Exception:  # noqa: BLE001 — no journal yet / backend error → none
+        return out
+    for row in rows:
+        fid = row.get("id")
+        ts = row.get("created_at") or ""
+        if not fid or not _is_newer(ts, fid, since):
+            continue
+        try:
+            full = store.get_finding(jctx.kb_id, fid)
+        except Exception:  # noqa: BLE001
+            full = {}
+        prov = full.get("provenance") or row.get("provenance") or []
+        if not any((p or {}).get("project") == project for p in prov):
+            continue
+        title = (full.get("title") or row.get("title") or "").strip()
+        tags = full.get("tags") or []
+        gist = next((t for t in tags if t not in ("journal",)), "") or \
+            _first_line(full.get("content", ""))
+        out.append(TimelineEvent(ts=ts, kind="journal", title=title or "(untitled)",
+                                 gist=gist, id=fid))
+    return out
+
+
+async def _gather_events(
+    ctx: TenantContext, *, project: str, since: tuple[str, str] | None
+) -> list[TimelineEvent]:
+    """All events newer than `since`, sorted ascending by (ts, id). Best-effort."""
+    store = get_store(ctx.access_token, org_id=ctx.org_id)
+    events: list[TimelineEvent] = []
+    events += _events_from_kb(store, ctx.kb_id, "note", "note", since)
+    events += _events_from_kb(store, ctx.kb_id, "capture", "snapshot", since)
+    events += _journal_events(project, since)
+    events.sort(key=_sort_key)
+    return events
