@@ -61,7 +61,7 @@ best-effort `try/except` that never breaks a session).
 | `livingdocs/paths.py` | extend `DocPaths` — `timeline_dir`, `timeline_state_path` |
 | `livingdocs/state.py` | add `TimelineState`, `load_timeline_state`, `save_timeline_state`, `should_roll` |
 | `config.py` (`LivingDocsConfig`) | add timeline knobs (below) |
-| `interfaces/mcp/server.py` | new `br8n_timeline` tool; call `schedule_timeline` alongside both existing `schedule_distill` calls (note + capture tools) |
+| `interfaces/mcp/server.py` | new `br8n_timeline` tool; call `schedule_timeline` in `_note_impl` (after `schedule_distill`) and in `_capture_impl` (after `schedule_activity_update`) |
 | `livingdocs/fallback.py` | call `schedule_timeline` after the session-note persist |
 | `skills/timeline/SKILL.md` | **new** — `/br8n:timeline` skill |
 | `CLAUDE.md` | update MCP-tool table, skills list, `.br8n/` layout, gate list |
@@ -201,10 +201,12 @@ def schedule_timeline(ctx, *, project, project_path, kb) -> None:
 `force=true` MCP call also respects the gate.
 
 **Wiring** (where to call `schedule_timeline`):
-- `interfaces/mcp/server.py` — alongside both existing `schedule_distill` calls
-  (the note tool ~L101 and the capture tool ~L146).
+- `interfaces/mcp/server.py` — in `_note_impl` (after the existing `schedule_distill`,
+  ~L101) and in `_capture_impl` (after `schedule_activity_update`, ~L83). The note
+  tool and the capture tool are the two event-creating MCP entry points.
 - `livingdocs/fallback.py` — after the backend session-note `persist_note` (the
   primary automatic note path).
+- The `br8n_timeline` tool's own non-`force` path also calls `schedule_timeline`.
 
 Because the pass is cursor-driven, these triggers only set the *cadence*; any event in
 the store newer than the cursor is included whenever a pass next runs (or on
